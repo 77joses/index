@@ -989,25 +989,44 @@ function detectFlag(binary,note,staves){
 function separateVoices(notes,staves,clefs,timeSig,keySig,filename){
   const parts={soprano:[],alto:[],tenor:[],bass:[]};
 
-  notes.forEach(note=>{
+  // ── KEY FIX: System continuation ──────────────────────────────
+  // Sort notes so they are read in the correct musical order:
+  // 1. By staff Y position (top of page first = first system)
+  // 2. Within each staff, by X position (left to right)
+  // This ensures soprano from staves 0,2,4 flows continuously
+  // and tenor/bass from staves 1,3,5 flows continuously
+  const sorted=[...notes].sort((a,b)=>{
+    // Primary: which staff (top to bottom on page)
+    if(a.staffIdx!==b.staffIdx)return a.staffIdx-b.staffIdx;
+    // Secondary: left to right within each staff
+    return a.x-b.x;
+  });
+
+  sorted.forEach(note=>{
     const idx=note.staffIdx;
     if(idx<0)return;
-    const clef=clefs[idx]||{type:'treble'};
     let voice='soprano';
 
     if(staffMode===4){
-      // Groups of 4: position within group determines voice
-      const pos=idx%4;
+      // 4-staff repeating groups:
+      // System 1: staves 0,1,2,3 = S,A,T,B
+      // System 2: staves 4,5,6,7 = S,A,T,B (continued)
+      // System 3: staves 8,9,10,11 = S,A,T,B (continued)
+      const posInGroup=idx%4;
       const voiceMap=['soprano','alto','tenor','bass'];
-      voice=voiceMap[pos]||'soprano';
+      voice=voiceMap[posInGroup]||'soprano';
+
     }else{
-      // 2-staff mode: pairs
-      const pairPos=idx%2;
-      if(pairPos===0){
-        // Treble staff (SA): stem up = soprano, stem down = alto
+      // 2-staff (grand staff) repeating pairs:
+      // System 1: staff 0 (treble=SA), staff 1 (bass=TB)
+      // System 2: staff 2 (treble=SA continued), staff 3 (bass=TB continued)
+      // System 3: staff 4 (treble=SA continued), staff 5 (bass=TB continued)
+      const posInPair=idx%2;
+      if(posInPair===0){
+        // Treble staff → Soprano (stem up) or Alto (stem down)
         voice=note.stemUp?'soprano':'alto';
       }else{
-        // Bass staff (TB): stem up = tenor, stem down = bass
+        // Bass staff → Tenor (stem up) or Bass (stem down)
         voice=note.stemUp?'tenor':'bass';
       }
     }
@@ -1016,19 +1035,31 @@ function separateVoices(notes,staves,clefs,timeSig,keySig,filename){
       pitch:note.pitch||'R',
       duration:note.duration||1,
       x:note.x,
+      staffIdx:idx,   // keep for debugging
       lyric:''
     });
   });
 
-  // Assign measures and beats to each voice
+  // Log voice distribution
+  log(`Voices: S=${parts.soprano.length} A=${parts.alto.length} T=${parts.tenor.length} B=${parts.bass.length}`,'ok');
+
+  // Assign continuous measures and beats to each voice
+  // Each voice is one unbroken stream from first note to last
   Object.keys(parts).forEach(voice=>{
     parts[voice]=assignMeasuresBeats(parts[voice],timeSig);
   });
 
-  const title=filename.replace(/\.[^.]+$/,'').replace(/[_-]/g,' ');
+  const title=filename.replace(/\.[^.]+$/,'').replace(/[_\-]/g,' ');
   const total=Object.values(parts).reduce((a,p)=>a+p.length,0);
-  return{title,key:keySig.name,time:timeSig.str,tempo:80,lyrics:'',parts,
-    meta:{totalNotes:total,filename,scannedAt:new Date().toISOString()}};
+  return{
+    title,
+    key:keySig.name,
+    time:timeSig.str,
+    tempo:80,
+    lyrics:'',
+    parts,
+    meta:{totalNotes:total,filename,staffMode,scannedAt:new Date().toISOString()}
+  };
 }
 
 function assignMeasuresBeats(notes,timeSig){
@@ -1049,20 +1080,33 @@ function assignMeasuresBeats(notes,timeSig){
 function drawStavesOverlay(overlay,staves,scale){
   const ctx=overlay.getContext('2d');
   ctx.clearRect(0,0,overlay.width,overlay.height);
-  const labels=staffMode===4?
-    ['Soprano','Alto','Tenor','Bass','Soprano','Alto','Tenor','Bass']:
-    ['Soprano+Alto','Tenor+Bass','Soprano+Alto','Tenor+Bass'];
+
   staves.forEach((s,i)=>{
+    // Label based on mode and position in repeating group
+    let label;
+    if(staffMode===4){
+      const labels=['Soprano','Alto','Tenor','Bass'];
+      const sys=Math.floor(i/4)+1;
+      label=labels[i%4]+(sys>1?' (sys'+sys+')':'');
+    }else{
+      const labels=['Soprano+Alto','Tenor+Bass'];
+      const sys=Math.floor(i/2)+1;
+      label=labels[i%2]+(sys>1?' (sys'+sys+')':'');
+    }
+
+    // Draw staff lines
     s.lines.forEach(ly=>{
-      ctx.strokeStyle='rgba(62,207,176,0.45)';
+      ctx.strokeStyle='rgba(62,207,176,0.4)';
       ctx.lineWidth=1;
       ctx.beginPath();
       ctx.moveTo(0,ly*scale);ctx.lineTo(overlay.width,ly*scale);
       ctx.stroke();
     });
-    ctx.fillStyle='rgba(201,168,76,0.85)';
+
+    // Draw label
+    ctx.fillStyle='rgba(201,168,76,0.9)';
     ctx.font='bold 10px monospace';
-    ctx.fillText(labels[i%labels.length]||'Staff '+(i+1),4,s.lines[0]*scale-3);
+    ctx.fillText(label,4,s.lines[0]*scale-3);
   });
 }
 
