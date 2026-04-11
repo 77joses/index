@@ -774,13 +774,13 @@ function detectNoteheads(binary, staves){
   // Notehead size in pixels:
   // A notehead width ≈ 0.7–1.2 × staff spacing
   // A notehead height ≈ 0.6–1.0 × staff spacing
-  // Use generous bounds to catch all sizes
-  const nhMinW = avgSpacing * 0.4;
-  const nhMaxW = avgSpacing * 1.4;
-  const nhMinH = avgSpacing * 0.35;
-  const nhMaxH = avgSpacing * 1.1;
-  const nhMinArea = nhMinW * nhMinH * 0.4;
-  const nhMaxArea = nhMaxW * nhMaxH * 1.5;
+  // Use VERY generous bounds first to diagnose what is being found
+  const nhMinW = avgSpacing * 0.2;   // very loose minimum
+  const nhMaxW = avgSpacing * 2.0;   // very loose maximum
+  const nhMinH = avgSpacing * 0.2;
+  const nhMaxH = avgSpacing * 1.5;
+  const nhMinArea = avgSpacing * avgSpacing * 0.03;  // very small minimum
+  const nhMaxArea = avgSpacing * avgSpacing * 4.0;   // very large maximum
 
   log(`Staff spacing: ${avgSpacing.toFixed(1)}px  Notehead W:${nhMinW.toFixed(1)}-${nhMaxW.toFixed(1)} H:${nhMinH.toFixed(1)}-${nhMaxH.toFixed(1)}`,'info');
 
@@ -791,7 +791,23 @@ function detectNoteheads(binary, staves){
   try{
     const working=binary.clone();
     cv.findContours(working,contours,hierarchy,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE);
-    log(`Total contours found: ${contours.size()}`,'info');
+    const total=contours.size();
+    log(`Total contours found: ${total}`,'info');
+
+    // Sample first 200 contours — log size distribution to tune filters
+    const sampleSizes=[];
+    for(let i=0;i<Math.min(total,200);i++){
+      const c=contours.get(i);
+      const r=cv.boundingRect(c);
+      c.delete();
+      sampleSizes.push(`${r.width}x${r.height}`);
+    }
+    // Show the 20 most common size ranges
+    const near=sampleSizes.filter(s=>{
+      const[w,h]=s.split('x').map(Number);
+      return w>2&&w<100&&h>2&&h<100;
+    }).slice(0,15);
+    log(`Sample contour sizes (WxH): ${near.join(', ')}`,'info');
 
     let rejected={tooSmall:0,tooBig:0,tooWide:0,tooThin:0,notNearStaff:0,passed:0};
 
@@ -822,7 +838,7 @@ function detectNoteheads(binary, staves){
       if(!nearStaff){rejected.notNearStaff++;continue;}
 
       // Reject full-width blobs (staff lines, barlines)
-      if(w > W*0.04){rejected.tooBig++;continue;}
+      if(w > W*0.08){rejected.tooBig++;continue;}
 
       // Is notehead filled (quarter/eighth) or open (half/whole)?
       const filled=isFilledNotehead(binary,rect);
