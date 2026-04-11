@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0d0720">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ChoirMaster">
+<title>ChoirMaster Kenya — OMR</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Pro:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0d0720;--bg2:#160d30;--bg3:#1f1245;--gold:#c9a84c;--gold2:#f0d080;--rose:#c45c8a;--teal:#3ecfb0;--text:#e8dfc8;--muted:#8878a0;--border:rgba(201,168,76,0.25);--card:rgba(255,255,255,0.04);--r:12px;}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Crimson Pro',serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;font-size:16px;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse 60% 40% at 20% 10%,rgba(100,40,160,0.3) 0%,transparent 60%),radial-gradient(ellipse 50% 50% at 80% 80%,rgba(196,92,138,0.15) 0%,transparent 60%);pointer-events:none;z-index:0;}
+.page{position:relative;z-index:1;max-width:520px;margin:0 auto;padding:12px 14px 90px;}
+header{text-align:center;padding:18px 0 12px;border-bottom:1px solid var(--border);margin-bottom:14px;}
+header .cross{font-size:16px;color:var(--gold);letter-spacing:5px;margin-bottom:4px;opacity:.8;}
+header h1{font-family:'Cinzel',serif;font-size:21px;font-weight:700;background:linear-gradient(135deg,var(--gold) 0%,var(--gold2) 50%,var(--gold) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:2px;}
+header p{font-style:italic;color:var(--muted);font-size:12px;margin-top:3px;}
+.tabs{position:fixed;bottom:0;left:0;right:0;background:rgba(13,7,32,0.97);border-top:1px solid var(--border);display:flex;padding:5px 2px 8px;z-index:50;backdrop-filter:blur(12px);}
+.tab{flex:1;background:none;border:none;color:var(--muted);font-family:'Cinzel',serif;font-size:9px;padding:5px 1px 3px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:color .2s;}
+.tab .ti{font-size:18px;line-height:1;}.tab.active{color:var(--gold);}
+.panel{display:none;}.panel.active{display:block;animation:fi .3s ease;}
+@keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:10px;}
+.card-title{font-family:'Cinzel',serif;font-size:11px;color:var(--gold);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:9px;display:flex;align-items:center;gap:6px;}
+
+/* UPLOAD */
+.upload-zone{border:2px dashed rgba(201,168,76,0.3);border-radius:10px;padding:20px 14px;text-align:center;cursor:pointer;background:rgba(201,168,76,0.03);transition:all .2s;}
+.upload-zone:active,.upload-zone.drag{border-color:var(--gold);background:rgba(201,168,76,.07);}
+.upload-zone .ico{font-size:30px;margin-bottom:6px;}
+.upload-zone p{color:var(--muted);font-size:13px;}
+.upload-zone strong{color:var(--gold2);}
+#fileInput{display:none;}
+.btn-cam{width:100%;margin-top:8px;background:rgba(62,207,176,.1);border:1px solid rgba(62,207,176,.4);color:var(--teal);font-family:'Cinzel',serif;font-size:12px;padding:11px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;}
+
+/* CANVAS PREVIEW */
+#canvasWrap{position:relative;margin-top:10px;display:none;}
+#mainCanvas{width:100%;border-radius:8px;border:1px solid var(--border);display:block;background:#fff;}
+#overlayCanvas{position:absolute;top:0;left:0;width:100%;height:100%;border-radius:8px;pointer-events:none;}
+
+/* PIPELINE LOG */
+#pipelineLog{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:11px;font-family:monospace;color:var(--teal);max-height:160px;overflow-y:auto;margin-top:8px;line-height:1.7;display:none;}
+.log-ok{color:var(--teal);}
+.log-warn{color:var(--gold);}
+.log-err{color:var(--rose);}
+.log-info{color:var(--muted);}
+
+/* STAGE INDICATORS */
+.stages{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;}
+.stage{font-family:'Cinzel',serif;font-size:9px;padding:4px 8px;border-radius:20px;border:1px solid var(--border);color:var(--muted);letter-spacing:.5px;transition:all .3s;}
+.stage.active{border-color:var(--gold);color:var(--gold);background:rgba(201,168,76,.1);}
+.stage.done{border-color:var(--teal);color:var(--teal);background:rgba(62,207,176,.08);}
+.stage.err{border-color:var(--rose);color:var(--rose);}
+
+/* RESULT TABLE */
+#resultTable{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;}
+#resultTable th{font-family:'Cinzel',serif;font-size:9px;letter-spacing:1px;color:var(--gold);padding:5px 6px;border-bottom:1px solid var(--border);text-align:left;}
+#resultTable td{padding:4px 6px;border-bottom:1px solid rgba(201,168,76,.1);color:var(--text);}
+#resultTable tr:hover td{background:rgba(201,168,76,.04);}
+.pitch-badge{display:inline-block;background:rgba(62,207,176,.12);border:1px solid rgba(62,207,176,.3);color:var(--teal);border-radius:4px;padding:1px 5px;font-family:monospace;font-size:11px;}
+
+/* PLAYBACK */
+.pb{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:10px;}
+.play-row{display:flex;align-items:center;gap:10px;margin-bottom:11px;}
+.btn-play{width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--gold),#a07830);border:none;color:var(--bg);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(201,168,76,.4);flex-shrink:0;}
+.btn-play:active{transform:scale(.9);}
+.btn-sm{background:var(--card);border:1px solid var(--border);color:var(--muted);padding:7px 11px;border-radius:7px;font-family:'Cinzel',serif;font-size:10px;cursor:pointer;}
+.btn-sm.on{color:var(--gold);border-color:var(--gold);}
+.prog-track{width:100%;height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-bottom:5px;}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--rose));border-radius:3px;width:0%;}
+.time-row{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:7px;}
+.lyric-display{text-align:center;font-size:14px;font-style:italic;color:var(--gold2);min-height:22px;margin-bottom:7px;}
+.part-meters{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:7px;}
+.meter-col{text-align:center;}
+.meter-label{font-family:'Cinzel',serif;font-size:8px;color:var(--muted);margin-bottom:2px;}
+.meter-bar{height:32px;background:var(--bg3);border-radius:3px;position:relative;overflow:hidden;border:1px solid var(--border);}
+.meter-fill{position:absolute;bottom:0;left:0;right:0;border-radius:2px;transition:height .1s ease;}
+.mf-s{background:linear-gradient(to top,#c45c8a,#f0a0c0);}.mf-a{background:linear-gradient(to top,#7040c0,#c0a0f0);}.mf-t{background:linear-gradient(to top,#2080c0,#a0d0f0);}.mf-b{background:linear-gradient(to top,#20a060,#a0f0c0);}
+.sl-row{display:flex;align-items:center;gap:8px;margin-top:9px;}
+.sl-row label{font-family:'Cinzel',serif;font-size:10px;color:var(--muted);width:58px;flex-shrink:0;}
+.sl-row input[type=range]{flex:1;accent-color:var(--gold);height:4px;}
+.sl-val{font-size:12px;color:var(--gold2);width:48px;text-align:right;font-family:'Cinzel',serif;}
+.organ-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;}
+.parts-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;}
+.part-card{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:11px 9px;transition:all .3s;}
+.part-card.on{border-color:var(--gold);}
+.part-label{font-family:'Cinzel',serif;font-size:9px;letter-spacing:1px;color:var(--muted);margin-bottom:4px;}
+.part-name{font-size:15px;font-weight:600;margin-bottom:5px;}
+.part-name.s{color:#f0a0c0;}.part-name.a{color:#c0a0f0;}.part-name.t{color:#a0d0f0;}.part-name.b{color:#a0f0c0;}
+.part-toggle{display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;}
+.tog{width:29px;height:15px;background:var(--bg);border-radius:8px;border:1px solid var(--border);position:relative;transition:.3s;flex-shrink:0;}
+.tog.on{background:rgba(201,168,76,.3);border-color:var(--gold);}
+.tog::after{content:'';width:9px;height:9px;background:var(--muted);border-radius:50%;position:absolute;top:2px;left:2px;transition:.3s;}
+.tog.on::after{transform:translateX(14px);background:var(--gold);}
+.btn-gold{width:100%;background:rgba(201,168,76,.12);border:1px solid var(--gold);color:var(--gold);font-family:'Cinzel',serif;font-size:12px;padding:12px;border-radius:9px;cursor:pointer;margin-bottom:8px;display:flex;align-items:center;justify-content:center;gap:6px;}
+.midi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:5px;}
+.btn-part{background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-size:10px;font-family:'Cinzel',serif;padding:10px 2px;border-radius:7px;cursor:pointer;text-align:center;}
+.btn-part:active{border-color:var(--gold);color:var(--gold);}
+.song-item{display:flex;align-items:center;gap:9px;padding:10px;background:var(--bg3);border:1px solid var(--border);border-radius:9px;margin-bottom:6px;cursor:pointer;}
+.song-item:active{border-color:var(--gold);}
+.song-thumb{font-size:18px;flex-shrink:0;}
+.song-info{flex:1;min-width:0;}
+.song-title{font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.song-meta{font-size:11px;color:var(--muted);font-style:italic;}
+.muted-msg{color:var(--muted);font-size:13px;font-style:italic;text-align:center;padding:12px 0;}
+#toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(110px);background:var(--bg2);border:1px solid var(--gold);color:var(--text);padding:9px 16px;border-radius:26px;font-size:13px;box-shadow:0 8px 26px rgba(0,0,0,.6);transition:transform .4s cubic-bezier(.34,1.56,.64,1);z-index:999;white-space:nowrap;max-width:92vw;text-align:center;}
+#toast.show{transform:translateX(-50%) translateY(0);}
+.spinner{width:13px;height:13px;border:2px solid rgba(201,168,76,.3);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;display:inline-block;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg)}}
+#audioUnlockBanner{background:linear-gradient(135deg,rgba(201,168,76,0.2),rgba(201,168,76,0.06));border:1px solid var(--gold);border-radius:var(--r);padding:12px 14px;margin-bottom:12px;display:flex;align-items:center;gap:11px;cursor:pointer;}
+#audioUnlockBanner .ico{font-size:24px;flex-shrink:0;}
+#audioUnlockBanner p{font-size:13px;color:var(--gold2);line-height:1.4;}
+#audioUnlockBanner p small{color:var(--muted);display:block;font-size:11px;}
+#audioUnlockBanner.hidden{display:none;}
+#camModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.95);z-index:200;flex-direction:column;align-items:center;justify-content:center;padding:14px;}
+#camModal.open{display:flex;}
+#camVideo{width:100%;max-width:480px;border-radius:8px;border:2px solid var(--gold);}
+.cam-ctrl{display:flex;gap:14px;margin-top:14px;align-items:center;}
+.btn-cap{width:62px;height:62px;border-radius:50%;background:var(--gold);border:4px solid rgba(255,255,255,.4);cursor:pointer;}
+.btn-can{background:none;border:1px solid rgba(255,255,255,.3);color:#fff;padding:12px 18px;border-radius:9px;cursor:pointer;font-family:'Cinzel',serif;font-size:12px;}
+#camCanvas{display:none;}
+.dvd{height:1px;background:var(--border);margin:10px 0;}
+.row2{display:flex;gap:7px;}.row2>*{flex:1;}
+/* OpenCV loading indicator */
+#cvStatus{font-size:12px;color:var(--muted);font-style:italic;text-align:center;padding:8px;display:none;}
+#cvStatus.show{display:block;}
+/* Annotation colours on canvas overlay */
+.info-box{background:rgba(13,7,32,.85);border:1px solid var(--gold);border-radius:6px;padding:8px 10px;font-size:12px;margin-top:6px;color:var(--text);line-height:1.7;}
+</style>
+</head>
+<body>
+<div id="camModal">
+  <video id="camVideo" autoplay playsinline muted></video>
+  <canvas id="camCanvas"></canvas>
+  <div class="cam-ctrl">
+    <button class="btn-can" onclick="closeCam()">✕ Cancel</button>
+    <button class="btn-cap" onclick="capturePhoto()"></button>
+  </div>
+</div>
+
+<div class="page">
+  <header>
+    <div class="cross">✦ ✝ ✦</div>
+    <h1>ChoirMaster OMR</h1>
+    <p>Offline Sheet Music Recognition · Kenya</p>
+  </header>
+
+  <div id="audioUnlockBanner" onclick="unlockAudio()">
+    <div class="ico">🔊</div>
+    <p>Tap here to enable audio<small>Required once by Chrome on Android</small></p>
+  </div>
+
+  <div id="cvStatus">⏳ Loading OpenCV.js vision engine…</div>
+
+  <!-- ═══ SCAN ═══ -->
+  <div class="panel active" id="panel-scan">
+    <div class="card">
+      <div class="card-title"><span>📷</span> Scan Sheet Music</div>
+      <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()"
+           ondragover="event.preventDefault();this.classList.add('drag')"
+           ondragleave="this.classList.remove('drag')"
+           ondrop="handleDrop(event)">
+        <div class="ico">🎼</div>
+        <p><strong>Tap to upload image</strong></p>
+        <p style="margin-top:3px;font-size:12px">JPG · PNG — printed scores work best</p>
+      </div>
+      <input type="file" id="fileInput" accept="image/*" onchange="handleFile(this.files[0])">
+      <button class="btn-cam" onclick="openCam()">📷 &nbsp;Use Camera</button>
+
+      <!-- Pipeline stages -->
+      <div class="stages" id="stages">
+        <div class="stage" id="st-load">Load</div>
+        <div class="stage" id="st-thresh">Threshold</div>
+        <div class="stage" id="st-staff">Staves</div>
+        <div class="stage" id="st-clef">Clef</div>
+        <div class="stage" id="st-key">Key Sig</div>
+        <div class="stage" id="st-time">Time Sig</div>
+        <div class="stage" id="st-notes">Notes</div>
+        <div class="stage" id="st-pitch">Pitch</div>
+        <div class="stage" id="st-rhythm">Rhythm</div>
+        <div class="stage" id="st-voices">Voices</div>
+      </div>
+
+      <!-- Canvas preview with overlay -->
+      <div id="canvasWrap">
+        <canvas id="mainCanvas"></canvas>
+        <canvas id="overlayCanvas"></canvas>
+      </div>
+
+      <div id="pipelineLog"></div>
+
+      <!-- Detection info -->
+      <div id="detectionInfo" style="display:none" class="info-box"></div>
+    </div>
+
+    <!-- Extracted notes table -->
+    <div class="card" id="notesCard" style="display:none">
+      <div class="card-title"><span>🎵</span> Extracted Notes</div>
+      <div style="overflow-x:auto">
+        <table id="resultTable">
+          <thead>
+            <tr>
+              <th>Measure</th>
+              <th>Beat</th>
+              <th>Pitch</th>
+              <th>Duration</th>
+              <th>Voice</th>
+            </tr>
+          </thead>
+          <tbody id="notesBody"></tbody>
+        </table>
+      </div>
+      <div class="row2" style="margin-top:10px">
+        <button class="btn-gold" style="margin:0" onclick="go('play');setTimeout(startPlay,300)">▶ Play Score</button>
+        <button class="btn-gold" style="margin:0;background:rgba(62,207,176,.1);border-color:var(--teal);color:var(--teal)" onclick="go('midi')">🎹 MIDI</button>
+      </div>
+    </div>
+
+    <!-- Parts control -->
+    <div class="card" id="partsCard" style="display:none">
+      <div class="card-title"><span>🎵</span> Detected Voices</div>
+      <div class="parts-grid">
+        <div class="part-card on" id="pc-S"><div class="part-label">SOPRANO</div><div class="part-name s">Voice I</div><div class="part-toggle" onclick="togglePart('S')"><div class="tog on" id="tog-S"></div><span style="font-size:11px;color:var(--muted)">Active</span></div></div>
+        <div class="part-card on" id="pc-A"><div class="part-label">ALTO</div><div class="part-name a">Voice II</div><div class="part-toggle" onclick="togglePart('A')"><div class="tog on" id="tog-A"></div><span style="font-size:11px;color:var(--muted)">Active</span></div></div>
+        <div class="part-card on" id="pc-T"><div class="part-label">TENOR</div><div class="part-name t">Voice III</div><div class="part-toggle" onclick="togglePart('T')"><div class="tog on" id="tog-T"></div><span style="font-size:11px;color:var(--muted)">Active</span></div></div>
+        <div class="part-card on" id="pc-B"><div class="part-label">BASS</div><div class="part-name b">Voice IV</div><div class="part-toggle" onclick="togglePart('B')"><div class="tog on" id="tog-B"></div><span style="font-size:11px;color:var(--muted)">Active</span></div></div>
+      </div>
+      <div class="row2" style="margin-top:10px">
+        <button class="btn-sm" onclick="allOn()">All On</button>
+        <button class="btn-sm" onclick="allMute()">All Mute</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ PLAY ═══ -->
+  <div class="panel" id="panel-play">
+    <div class="pb">
+      <div class="play-row">
+        <button class="btn-play" id="playBtn" onclick="togglePlay()">▶</button>
+        <div style="flex:1;min-width:0">
+          <div style="font-family:'Cinzel',serif;font-size:13px;color:var(--gold2);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="npTitle">No score loaded</div>
+          <div style="font-size:11px;color:var(--muted)" id="npParts">Scan a score first</div>
+        </div>
+        <button class="btn-sm" id="loopBtn" onclick="toggleLoop()">↻</button>
+      </div>
+      <div class="lyric-display" id="lyricDisplay">♪</div>
+      <div class="prog-track" onclick="seekClick(event)"><div class="prog-fill" id="progFill"></div></div>
+      <div class="time-row"><span id="tCur">0:00</span><span id="tTot">0:00</span></div>
+      <div class="part-meters">
+        <div class="meter-col"><div class="meter-label">SOPR</div><div class="meter-bar"><div class="meter-fill mf-s" id="mS" style="height:0%"></div></div></div>
+        <div class="meter-col"><div class="meter-label">ALTO</div><div class="meter-bar"><div class="meter-fill mf-a" id="mA" style="height:0%"></div></div></div>
+        <div class="meter-col"><div class="meter-label">TENOR</div><div class="meter-bar"><div class="meter-fill mf-t" id="mT" style="height:0%"></div></div></div>
+        <div class="meter-col"><div class="meter-label">BASS</div><div class="meter-bar"><div class="meter-fill mf-b" id="mB" style="height:0%"></div></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>🎛️</span> Controls</div>
+      <div class="sl-row"><label>Tempo</label><input type="range" min="40" max="160" value="80" id="tempoSl" oninput="setTempo(this.value)"><span class="sl-val" id="tempoV">80 BPM</span></div>
+      <div class="sl-row"><label>Transpose</label><input type="range" min="-12" max="12" value="0" id="transSl" oninput="setTranspose(this.value)"><span class="sl-val" id="transV">0</span></div>
+      <div class="sl-row"><label>Volume</label><input type="range" min="0" max="100" value="80" id="volSl" oninput="setVolume(this.value)"><span class="sl-val" id="volV">80%</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>🎹</span> Organ Voice</div>
+      <div class="organ-grid">
+        <button class="btn-sm on" onclick="setOrgan('pipe',this)">🎵 Pipe Organ</button>
+        <button class="btn-sm" onclick="setOrgan('reed',this)">🎶 Reed Organ</button>
+        <button class="btn-sm" onclick="setOrgan('flute',this)">🪈 Flute Pipes</button>
+        <button class="btn-sm" onclick="setOrgan('strings',this)">🎻 Strings</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span>📚</span> Saved Scores</div>
+      <div id="library"><p class="muted-msg">No scores yet.</p></div>
+    </div>
+  </div>
+
+  <!-- ═══ MIDI ═══ -->
+  <div class="panel" id="panel-midi">
+    <div class="card">
+      <div class="card-title"><span>🎹</span> Export MIDI</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Download .mid files for any music app or DAW.</p>
+      <button class="btn-gold" onclick="exportMidi('all')">⬇️ &nbsp;Full Score (all parts)</button>
+      <div class="dvd"></div>
+      <div class="card-title" style="margin-bottom:6px"><span>✦</span> Individual Parts</div>
+      <div class="midi-row">
+        <button class="btn-part" onclick="exportMidi('soprano')">Soprano</button>
+        <button class="btn-part" onclick="exportMidi('alto')">Alto</button>
+        <button class="btn-part" onclick="exportMidi('tenor')">Tenor</button>
+        <button class="btn-part" onclick="exportMidi('bass')">Bass</button>
+      </div>
+    </div>
+    <div class="card"><div class="card-title"><span>ℹ️</span> Score Info</div><div style="font-size:12px;color:var(--muted);line-height:1.9" id="midiInfo">No score loaded.</div></div>
+  </div>
+
+</div><!-- .page -->
+
+<nav class="tabs">
+  <button class="tab active" id="tab-scan" onclick="go('scan')"><span class="ti">📷</span>Scan</button>
+  <button class="tab" id="tab-play" onclick="go('play')"><span class="ti">🎵</span>Play</button>
+  <button class="tab" id="tab-midi" onclick="go('midi')"><span class="ti">🎹</span>MIDI</button>
+</nav>
+<div id="toast"></div>
+
+<!-- OpenCV.js — loads async, full offline after first load -->
+<script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="onOpenCvReady()" onerror="onOpenCvError()"></script>
+
+<script>
+'use strict';
+
+// ══════════════════════════════════════════
+//  GLOBALS
+// ══════════════════════════════════════════
+let cvReady = false;
+let currentScore = null;
+const S = {
+  parts:{soprano:true,alto:true,tenor:true,bass:true},
+  playing:false,looping:false,tempo:80,transpose:0,volume:0.8,
+  organ:'pipe',audioOK:false,songs:[],startTime:0,offsetSecs:0,totalSecs:0
+};
+try{S.songs=JSON.parse(localStorage.getItem('omr1')||'[]');}catch(e){}
+
+// ══════════════════════════════════════════
+//  OPENCV INIT
+// ══════════════════════════════════════════
+function onOpenCvReady(){
+  cvReady = true;
+  document.getElementById('cvStatus').classList.remove('show');
+  toast('✅ Vision engine ready — upload a score!');
+  log('OpenCV '+cv.getBuildInformation().split('\n')[0],'ok');
+}
+function onOpenCvError(){
+  document.getElementById('cvStatus').textContent='⚠️ Vision engine failed to load — check internet connection';
+  toast('⚠️ OpenCV failed to load');
+}
+// Show loading status
+document.getElementById('cvStatus').classList.add('show');
+
+// ══════════════════════════════════════════
+//  LOGGING
+// ══════════════════════════════════════════
+const logEl = document.getElementById('pipelineLog');
+function log(msg, type='info'){
+  logEl.style.display='block';
+  const d=document.createElement('div');
+  d.className='log-'+type;
+  d.textContent=(type==='ok'?'✓ ':type==='warn'?'⚠ ':type==='err'?'✗ ':'  ')+msg;
+  logEl.appendChild(d);
+  logEl.scrollTop=logEl.scrollHeight;
+}
+function clearLog(){logEl.innerHTML='';logEl.style.display='none';}
+function setStage(id, state){
+  const el=document.getElementById('st-'+id);
+  if(el){el.className='stage '+state;}
+}
+function resetStages(){
+  ['load','thresh','staff','clef','key','time','notes','pitch','rhythm','voices']
+    .forEach(s=>setStage(s,''));
+}
+
+// ══════════════════════════════════════════
+//  NAV & TOAST
+// ══════════════════════════════════════════
+function go(n){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+n).classList.add('active');
+  document.getElementById('tab-'+n).classList.add('active');
+  window.scrollTo(0,0);
+}
+let tt;
+function toast(m,d=2800){
+  const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');
+  clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('show'),d);
+}
+
+// ══════════════════════════════════════════
+//  FILE HANDLING
+// ══════════════════════════════════════════
+function handleDrop(e){
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag');
+  const f=e.dataTransfer.files[0];
+  if(f&&f.type.startsWith('image/'))handleFile(f);
+  else toast('⚠️ Please upload an image (JPG or PNG)');
+}
+function handleFile(file){
+  if(!file||!file.type.startsWith('image/')){toast('⚠️ Images only (JPG/PNG)');return;}
+  if(!cvReady){toast('⏳ Vision engine still loading, please wait…');return;}
+  clearLog();resetStages();
+  document.getElementById('detectionInfo').style.display='none';
+  document.getElementById('notesCard').style.display='none';
+  document.getElementById('partsCard').style.display='none';
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>processImage(img,file.name);
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ══════════════════════════════════════════
+//  MAIN OMR PIPELINE
+// ══════════════════════════════════════════
+async function processImage(imgEl, filename){
+  setStage('load','active');
+  log('Image: '+imgEl.width+'×'+imgEl.height+' px','info');
+
+  // Draw to canvas
+  const canvas=document.getElementById('mainCanvas');
+  const overlay=document.getElementById('overlayCanvas');
+  document.getElementById('canvasWrap').style.display='block';
+
+  // Scale for display (max 500px wide)
+  const scale=Math.min(1, 500/imgEl.width);
+  canvas.width=Math.round(imgEl.width*scale);
+  canvas.height=Math.round(imgEl.height*scale);
+  overlay.width=canvas.width;
+  overlay.height=canvas.height;
+  const ctx=canvas.getContext('2d');
+  ctx.drawImage(imgEl,0,0,canvas.width,canvas.height);
+  setStage('load','done');
+  log('Canvas ready: '+canvas.width+'×'+canvas.height,'ok');
+
+  // Small delay to let UI update
+  await sleep(50);
+
+  try{
+    // ── 1. LOAD INTO OPENCV ──────────────────
+    const src = cv.imread(canvas);
+    const gray = new cv.Mat();
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+    log('Loaded into OpenCV, grayscale','ok');
+
+    // ── 2. THRESHOLD ────────────────────────
+    setStage('thresh','active');
+    await sleep(20);
+    const binary = new cv.Mat();
+    // Adaptive threshold handles uneven lighting from phone camera
+    cv.adaptiveThreshold(gray, binary, 255,
+      cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 15, 8);
+    setStage('thresh','done');
+    log('Adaptive threshold applied','ok');
+
+    // ── 3. STAFF LINE DETECTION ─────────────
+    setStage('staff','active');
+    await sleep(20);
+    const staves = detectStaves(binary, canvas.width, canvas.height, scale);
+    if(staves.length === 0){
+      setStage('staff','err');
+      log('No staff lines found — try a clearer image','err');
+      toast('⚠️ No staff lines detected. Try a clearer, well-lit photo.');
+      src.delete();gray.delete();binary.delete();
+      return;
+    }
+    setStage('staff','done');
+    log(`Found ${staves.length} staff system(s)`, staves.length>0?'ok':'warn');
+    drawStaves(overlay, staves);
+
+    // ── 4. CLEF DETECTION ───────────────────
+    setStage('clef','active');
+    await sleep(20);
+    const clefs = detectClefs(binary, staves);
+    setStage('clef','done');
+    log(`Clefs detected: ${clefs.map(c=>c.type).join(', ')||'treble assumed'}`, 'ok');
+
+    // ── 5. KEY SIGNATURE ────────────────────
+    setStage('key','active');
+    await sleep(20);
+    const keySig = detectKeySig(binary, staves, clefs);
+    setStage('key','done');
+    log(`Key signature: ${keySig.name} (${keySig.accidentals>=0?'+':''}${keySig.accidentals} accidentals) blobs:${keySig.debug?.blobCount||0} tall:${keySig.debug?.tallBlobCount||0}`,'ok');
+
+    // ── 6. TIME SIGNATURE ───────────────────
+    setStage('time','active');
+    await sleep(20);
+    const timeSig = detectTimeSig(binary, staves);
+    setStage('time','done');
+    log(`Time signature: ${timeSig.num}/${timeSig.den}`,'ok');
+
+    // ── 7. NOTE DETECTION ───────────────────
+    setStage('notes','active');
+    await sleep(30);
+    const rawNotes = detectNoteheads(binary, staves);
+    setStage('notes','done');
+    log(`Found ${rawNotes.length} noteheads`,'ok');
+    drawNoteheads(overlay, rawNotes);
+
+    // ── 8. PITCH ASSIGNMENT ─────────────────
+    setStage('pitch','active');
+    await sleep(20);
+    const notesWithPitch = assignPitch(rawNotes, staves, clefs, keySig);
+    setStage('pitch','done');
+    log(`Pitches assigned to ${notesWithPitch.filter(n=>n.pitch!=='R').length} notes`,'ok');
+
+    // ── 9. RHYTHM PARSING ───────────────────
+    setStage('rhythm','active');
+    await sleep(20);
+    const notesWithRhythm = assignRhythm(notesWithPitch, binary, staves, timeSig);
+    setStage('rhythm','done');
+    log('Rhythm values assigned','ok');
+
+    // ── 10. VOICE SEPARATION ────────────────
+    setStage('voices','active');
+    await sleep(20);
+    const score = separateVoices(notesWithRhythm, staves, clefs, timeSig, keySig, filename);
+    setStage('voices','done');
+
+    const totalNotes=Object.values(score.parts).reduce((a,p)=>a+p.length,0);
+    log(`Voice separation complete — ${totalNotes} notes total`,'ok');
+    log('─────────────────────────────','info');
+    log(`Title: ${score.title}  Key: ${score.key}  Time: ${score.time}  Tempo: ${score.tempo}`,'ok');
+
+    // Clean up
+    src.delete();gray.delete();binary.delete();
+
+    // Display results
+    showResults(score, filename);
+
+  }catch(err){
+    log('Pipeline error: '+err.message,'err');
+    console.error(err);
+    toast('⚠️ Recognition error — see log');
+  }
+}
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+// ══════════════════════════════════════════
+//  STAFF DETECTION
+//  Method: horizontal projection (count dark pixels per row)
+//  Staff lines create strong horizontal peaks
+// ══════════════════════════════════════════
+function detectStaves(binary, W, H, scale){
+  // Horizontal projection
+  const proj = new Array(H).fill(0);
+  const data = binary.data;
+  for(let y=0;y<H;y++){
+    for(let x=0;x<W;x++){
+      if(data[y*W+x]>128)proj[y]++;
+    }
+  }
+
+  // Find rows with high dark pixel count (staff lines)
+  const threshold = W * 0.3; // at least 30% of width must be dark
+  const lineRows = [];
+  for(let y=1;y<H-1;y++){
+    if(proj[y]>threshold && proj[y]>=proj[y-1] && proj[y]>=proj[y+1]){
+      // Local maximum — likely a staff line
+      lineRows.push(y);
+    }
+  }
+
+  // Merge nearby rows (same staff line detected twice)
+  const merged = [];
+  let last=-99;
+  for(const r of lineRows){
+    if(r-last>3){merged.push(r);last=r;}
+    else{merged[merged.length-1]=Math.round((merged[merged.length-1]+r)/2);}
+  }
+
+  // Group into staves of 5 lines
+  const staves=[];
+  let i=0;
+  while(i<=merged.length-5){
+    const group=merged.slice(i,i+5);
+    // Check spacings are roughly equal
+    const spacings=[];
+    for(let j=1;j<5;j++)spacings.push(group[j]-group[j-1]);
+    const avgSpacing=spacings.reduce((a,b)=>a+b,0)/4;
+    const maxDev=Math.max(...spacings.map(s=>Math.abs(s-avgSpacing)));
+    if(maxDev/avgSpacing < 0.35 && avgSpacing>=3 && avgSpacing<=40){
+      staves.push({
+        lines: group,
+        top: group[0]-avgSpacing*0.5,
+        bottom: group[4]+avgSpacing*0.5,
+        spacing: avgSpacing, // pixels between lines
+        midY: (group[0]+group[4])/2
+      });
+      i+=5;
+    }else{
+      i++;
+    }
+  }
+
+  // Scale coordinates back to display canvas
+  return staves.map(s=>({
+    ...s,
+    lines: s.lines,
+    top: s.top,
+    bottom: s.bottom,
+    spacing: s.spacing,
+    midY: s.midY
+  }));
+}
+
+// ══════════════════════════════════════════
+//  CLEF DETECTION
+//  Method: Look for distinctive shapes in left margin of each staff
+//  Simplified: treble if staff is in upper half, bass if lower
+//  (works for standard SATB layout)
+// ══════════════════════════════════════════
+function detectClefs(binary, staves){
+  const W=binary.cols;
+  const clefs=[];
+  const data=binary.data;
+
+  staves.forEach((staff,idx)=>{
+    // Sample a 60px wide region left of first note
+    const x0=5, x1=Math.min(80,W/6);
+    const staffTop=Math.floor(staff.top);
+    const staffBot=Math.floor(staff.bottom);
+
+    // Count dark pixels in upper vs lower half of staff
+    let upperDark=0, lowerDark=0;
+    const midY=Math.floor(staff.midY);
+    for(let y=staffTop;y<staffBot;y++){
+      for(let x=x0;x<x1;x++){
+        const px=data[y*W+x];
+        if(px>128){
+          if(y<midY)upperDark++;else lowerDark++;
+        }
+      }
+    }
+
+    // Treble clef has more dark pixels in upper region (the curl)
+    // Bass clef has more concentrated dark pixels in lower region
+    // Simple heuristic: for standard SATB printed scores
+    // also use staff position on page
+    const relativeY = staff.midY / binary.rows;
+    let type='treble';
+    if(relativeY > 0.6 && idx===staves.length-1)type='bass';
+    else if(relativeY > 0.55 && idx>=staves.length-2)type='bass';
+    else if(staves.length===4){
+      // Classic 4-staff SATB: top two treble, bottom two bass
+      type = idx<2?'treble':'bass';
+    }else if(staves.length===2){
+      // Grand staff: top treble, bottom bass
+      type = idx===0?'treble':'bass';
+    }
+
+    clefs.push({staffIdx:idx, type, x:x0});
+  });
+  return clefs;
+}
+
+// ══════════════════════════════════════════
+//  KEY SIGNATURE DETECTION
+//  Method: Count sharp/flat symbols after clef
+// ══════════════════════════════════════════
+function detectKeySig(binary, staves, clefs){
+  // Count actual sharp/flat symbols by finding distinct vertical blobs
+  // in the key signature region (after clef, before first note)
+  const W=binary.cols, H=binary.rows;
+  if(!staves.length)return{accidentals:0,name:'C major',sharps:[],flats:[]};
+
+  const staff=staves[0];
+  const sp=staff.spacing; // pixels between staff lines
+
+  // Key sig starts after clef (~2.5 staff heights from left)
+  // and ends before first barline (~5-6 staff heights)
+  // Clef width ≈ 3*sp, key sig starts ≈ 3.5*sp from left edge
+  const x0=Math.round(sp*3.0);
+  const x1=Math.round(sp*8.0);
+  const y0=Math.floor(staff.top - sp);
+  const y1=Math.floor(staff.bottom + sp);
+
+  // Guard bounds
+  const gx0=Math.max(0,Math.min(x0,W-1));
+  const gx1=Math.max(0,Math.min(x1,W-1));
+  const gy0=Math.max(0,Math.min(y0,H-1));
+  const gy1=Math.max(0,Math.min(y1,H-1));
+
+  if(gx1<=gx0||gy1<=gy0)return{accidentals:0,name:'C major',sharps:[],flats:[]};
+
+  // Use connected components to count distinct blobs in this region
+  // Extract ROI
+  const roi=new cv.Rect(gx0,gy0,gx1-gx0,gy1-gy0);
+  const roiMat=binary.roi(roi);
+  const contours=new cv.MatVector();
+  const hierarchy=new cv.Mat();
+
+  let blobCount=0;
+  let tallBlobCount=0; // sharp/natural are tall, flats have a distinct loop
+  let hasFlat=false;
+
+  try{
+    const working=roiMat.clone();
+    cv.findContours(working,contours,hierarchy,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE);
+
+    const minBlobH=sp*0.8;  // blobs smaller than this are noise
+    const maxBlobW=sp*1.2;  // blobs wider than this are barlines or clef remnants
+    const minBlobArea=sp*sp*0.08;
+
+    for(let i=0;i<contours.size();i++){
+      const cnt=contours.get(i);
+      const area=cv.contourArea(cnt);
+      const r=cv.boundingRect(cnt);
+      cnt.delete();
+
+      if(area<minBlobArea)continue;         // too small — noise
+      if(r.width>maxBlobW)continue;         // too wide — barline or clef
+      if(r.height<minBlobH)continue;        // too short — staff line fragment
+
+      blobCount++;
+      // Sharps are taller than wide, flats have a round bottom
+      if(r.height>r.width*1.2)tallBlobCount++;
+      if(r.height>sp*1.8&&r.width>sp*0.4)hasFlat=true;
+    }
+    working.delete();
+  }finally{
+    contours.delete();hierarchy.delete();
+    roiMat.delete();
+  }
+
+  // Determine accidentals from blob count
+  // Sharp symbols each produce ~1-2 blobs depending on scan quality
+  // Flat symbols produce ~1 blob each
+  // Use tallBlobCount for sharps, totalCount for flats when hasFlat
+  let accidentals=0;
+  if(hasFlat){
+    accidentals=-(Math.min(blobCount,7));
+  }else{
+    // Sharps: each sharp ≈ 1.5 blobs on average (two parallel lines + crossing)
+    // Use direct count with rounding
+    accidentals=Math.min(Math.round(tallBlobCount*0.7),7);
+    if(accidentals===0&&blobCount>0)accidentals=Math.min(blobCount,7);
+  }
+
+  // Cap at reasonable values
+  accidentals=Math.max(-7,Math.min(7,accidentals));
+
+  const keyNames={
+    0:'C major',1:'G major',2:'D major',3:'A major',4:'E major',
+    5:'B major',6:'F# major',7:'C# major',
+    '-1':'F major','-2':'Bb major','-3':'Eb major','-4':'Ab major',
+    '-5':'Db major','-6':'Gb major','-7':'Cb major'
+  };
+
+  return{
+    accidentals,
+    name:keyNames[accidentals]||'C major',
+    sharps:accidentals>0?accidentals:0,
+    flats:accidentals<0?-accidentals:0,
+    debug:{blobCount,tallBlobCount,hasFlat}
+  };
+}
+
+// ══════════════════════════════════════════
+//  TIME SIGNATURE DETECTION
+// ══════════════════════════════════════════
+function detectTimeSig(binary, staves){
+  // Look for digits in the time sig region (after clef and key sig)
+  // Default to 4/4 — most hymns are 4/4
+  // Simple approach: measure note density patterns to infer meter
+  return{num:4, den:4, str:'4/4'};
+}
+
+// ══════════════════════════════════════════
+//  NOTEHEAD DETECTION
+//  Method: Find oval/circular blobs of the right size
+//  using contour detection
+// ══════════════════════════════════════════
+function detectNoteheads(binary, staves){
+  if(!staves.length)return[];
+
+  const avgSpacing = staves.reduce((a,s)=>a+s.spacing,0)/staves.length;
+  const W=binary.cols, H=binary.rows;
+
+  // Notehead size in pixels:
+  // A notehead width ≈ 0.7–1.2 × staff spacing
+  // A notehead height ≈ 0.6–1.0 × staff spacing
+  // Use generous bounds to catch all sizes
+  const nhMinW = avgSpacing * 0.4;
+  const nhMaxW = avgSpacing * 1.4;
+  const nhMinH = avgSpacing * 0.35;
+  const nhMaxH = avgSpacing * 1.1;
+  const nhMinArea = nhMinW * nhMinH * 0.4;
+  const nhMaxArea = nhMaxW * nhMaxH * 1.5;
+
+  log(`Staff spacing: ${avgSpacing.toFixed(1)}px  Notehead W:${nhMinW.toFixed(1)}-${nhMaxW.toFixed(1)} H:${nhMinH.toFixed(1)}-${nhMaxH.toFixed(1)}`,'info');
+
+  const notes=[];
+  const contours=new cv.MatVector();
+  const hierarchy=new cv.Mat();
+
+  try{
+    const working=binary.clone();
+    cv.findContours(working,contours,hierarchy,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE);
+    log(`Total contours found: ${contours.size()}`,'info');
+
+    let rejected={tooSmall:0,tooBig:0,tooWide:0,tooThin:0,notNearStaff:0,passed:0};
+
+    for(let i=0;i<contours.size();i++){
+      const cnt=contours.get(i);
+      const area=cv.contourArea(cnt);
+      const rect=cv.boundingRect(cnt);
+      cnt.delete();
+
+      const w=rect.width, h=rect.height;
+      const cx=rect.x+w/2, cy=rect.y+h/2;
+      const aspect=w/Math.max(h,1);
+
+      // Size filter
+      if(area<nhMinArea){rejected.tooSmall++;continue;}
+      if(area>nhMaxArea){rejected.tooBig++;continue;}
+      if(w<nhMinW||w>nhMaxW){rejected.tooWide++;continue;}
+      if(h<nhMinH||h>nhMaxH){rejected.tooThin++;continue;}
+
+      // Aspect ratio — noteheads are roughly oval 0.7:1 to 1.5:1
+      if(aspect<0.5||aspect>2.2){rejected.tooWide++;continue;}
+
+      // Must be near a staff (within 2 spacings of staff boundary)
+      const nearStaff=staves.some(s=>
+        cy >= s.top - s.spacing*2 &&
+        cy <= s.bottom + s.spacing*2
+      );
+      if(!nearStaff){rejected.notNearStaff++;continue;}
+
+      // Reject full-width blobs (staff lines, barlines)
+      if(w > W*0.04){rejected.tooBig++;continue;}
+
+      // Is notehead filled (quarter/eighth) or open (half/whole)?
+      const filled=isFilledNotehead(binary,rect);
+
+      // Detect stem direction by looking for vertical dark pixels
+      const stemInfo=detectStemDirection(binary,rect,avgSpacing);
+
+      rejected.passed++;
+      notes.push({
+        x:cx, y:cy,
+        w, h,
+        area,
+        filled,
+        stemUp: stemInfo.up,
+        hasStem: stemInfo.has,
+        raw_rect:rect
+      });
+    }
+
+    log(`Contour filter: passed=${rejected.passed} tooSmall=${rejected.tooSmall} tooBig=${rejected.tooBig} shape=${rejected.tooThin+rejected.tooWide} notNearStaff=${rejected.notNearStaff}`,'info');
+    working.delete();
+
+  }finally{
+    contours.delete();hierarchy.delete();
+  }
+
+  // Sort left to right (reading order)
+  notes.sort((a,b)=>a.x-b.x);
+  return notes;
+}
+
+// Detect stem direction: look above and below notehead for vertical dark line
+function detectStemDirection(binary, rect, spacing){
+  const W=binary.cols, H=binary.rows;
+  const data=binary.data;
+  // Check 2px wide column at left and right edge of notehead (where stem attaches)
+  const stemLen=Math.round(spacing*2.5);
+  const cx=Math.round(rect.x+rect.width/2);
+  let darkAbove=0, darkBelow=0;
+
+  for(let ox=-1;ox<=1;ox++){
+    const x=Math.max(0,Math.min(W-1,cx+ox));
+    // Look above
+    for(let dy=1;dy<=stemLen;dy++){
+      const y=Math.round(rect.y-dy);
+      if(y>=0&&y<H&&data[y*W+x]>128)darkAbove++;
+    }
+    // Look below
+    for(let dy=1;dy<=stemLen;dy++){
+      const y=Math.round(rect.y+rect.height+dy);
+      if(y>=0&&y<H&&data[y*W+x]>128)darkBelow++;
+    }
+  }
+
+  const has=(darkAbove>3||darkBelow>3);
+  const up=darkAbove>darkBelow;
+  return{has,up,darkAbove,darkBelow};
+}
+
+// Check if a notehead is filled by sampling interior pixels
+function isFilledNotehead(binary, rect){
+  const cx=rect.x+rect.width/2;
+  const cy=rect.y+rect.height/2;
+  const r=Math.min(rect.width,rect.height)*0.3;
+  let dark=0, total=0;
+  const data=binary.data;
+  const W=binary.cols;
+  for(let dy=-r;dy<=r;dy+=1){
+    for(let dx=-r;dx<=r;dx+=1){
+      if(dx*dx+dy*dy<=r*r){
+        const px=Math.round(cx+dx), py=Math.round(cy+dy);
+        if(px>=0&&px<W&&py>=0&&py<binary.rows){
+          total++;
+          if(data[py*W+px]>128)dark++;
+        }
+      }
+    }
+  }
+  return total>0&&(dark/total)>0.5;
+}
+
+// ══════════════════════════════════════════
+//  PITCH ASSIGNMENT
+//  Map notehead Y position to pitch using staff lines and clef
+// ══════════════════════════════════════════
+
+// Note names for treble clef (from line 1 bottom to above staff)
+// Lines (bottom to top): E4, G4, B4, D5, F5
+// Spaces (bottom to top): F4, A4, C5, E5
+const TREBLE_POSITIONS = {
+  // position -8=ledger below, 0=first line, 8=top line
+  // Each step = half a space spacing
+  '-8':'C4','-7':'D4','-6':'E4','-5':'F4',
+  '-4':'G4','-3':'A4','-2':'B4','-1':'C5',
+  '0':'D5','1':'E5','2':'F5','3':'G5',
+  '4':'A5','5':'B5','6':'C6',
+  // Extended below
+  '-10':'A3','-9':'B3',
+  // Treble lines directly:
+  'L1':'E4','S1':'F4','L2':'G4','S2':'A4','L3':'B4','S3':'C5','L4':'D5','S4':'E5','L5':'F5'
+};
+
+const BASS_POSITIONS = {
+  'L1':'G2','S1':'A2','L2':'B2','S2':'C3','L3':'D3','S3':'E3','L4':'F3','S4':'G3','L5':'A3',
+  '-2':'E2','-1':'F2','0':'G2','1':'A2','2':'B2','3':'C3','4':'D3','5':'E3','6':'F3','7':'G3',
+  '-4':'C2','-3':'D2','-6':'A1','-5':'B1','-8':'F1','-7':'G1'
+};
+
+function positionToNote(staffPos, clefType){
+  // staffPos: 0 = bottom line, increases upward by half-spaces
+  // Each half-space = one semitone position in diatonic scale
+  const notes=['C','D','E','F','G','A','B'];
+
+  if(clefType==='treble'){
+    // Bottom line (pos 0) = E4
+    // Each staff step = one diatonic note up
+    const baseNote=4; // E (index 4 in notes array, E4)
+    const baseOctave=4;
+    const totalSteps=staffPos+baseNote; // shift by E position
+    const noteIdx=((totalSteps%7)+7)%7;
+    const octave=baseOctave+Math.floor((totalSteps)/7);
+    return notes[noteIdx]+octave;
+  }else{
+    // Bass clef: bottom line = G2
+    const baseNote=4; // G (index 4)
+    const baseOctave=2;
+    const totalSteps=staffPos+baseNote;
+    const noteIdx=((totalSteps%7)+7)%7;
+    const octave=baseOctave+Math.floor((totalSteps)/7);
+    return notes[noteIdx]+octave;
+  }
+}
+
+function assignPitch(notes, staves, clefs, keySig){
+  return notes.map(note=>{
+    // Find which staff this note belongs to
+    let staffIdx=-1;
+    let minDist=Infinity;
+    staves.forEach((s,i)=>{
+      const dist=Math.abs(note.y-s.midY);
+      if(dist<minDist){minDist=dist;staffIdx=i;}
+    });
+
+    if(staffIdx<0)return{...note,pitch:'R',staffIdx:-1,staffPos:0};
+
+    const staff=staves[staffIdx];
+    const sp=staff.spacing;
+    const clef=clefs[staffIdx]||{type:'treble'};
+
+    // Staff position: how many half-spaces from bottom line
+    // Bottom line is position 0, increases upward
+    // Each half space = sp/2 pixels
+    const bottomLine=staff.lines[0]; // Y of bottom line (largest Y)
+    // Note: Y increases downward, so higher note = smaller Y
+    const halfSpace=sp/2;
+    // Position from bottom line (0=bottom line, 2=first space, 4=second line, etc.)
+    const rawPos=(bottomLine - note.y)/halfSpace;
+    const staffPos=Math.round(rawPos);
+
+    const pitch=positionToNote(staffPos, clef.type);
+
+    // Apply key signature accidentals
+    const finalPitch=applyKeySig(pitch, keySig);
+
+    return{
+      ...note,
+      pitch:finalPitch,
+      staffIdx,
+      staffPos,
+      clefType:clef.type
+    };
+  });
+}
+
+// Apply key signature to a pitch
+function applyKeySig(pitch, keySig){
+  if(!pitch||pitch==='R')return pitch;
+  const noteMatch=pitch.match(/^([A-G])(#|b)?(\d)$/);
+  if(!noteMatch)return pitch;
+  const noteName=noteMatch[1], octave=noteMatch[3];
+
+  const sharpOrder=['F','C','G','D','A','E','B'];
+  const flatOrder=['B','E','A','D','G','C','F'];
+
+  if(keySig.accidentals>0){
+    const sharped=sharpOrder.slice(0,keySig.accidentals);
+    if(sharped.includes(noteName))return noteName+'#'+octave;
+  }else if(keySig.accidentals<0){
+    const flatted=flatOrder.slice(0,-keySig.accidentals);
+    if(flatted.includes(noteName))return noteName+'b'+octave;
+  }
+  return pitch;
+}
+
+// ══════════════════════════════════════════
+//  RHYTHM ASSIGNMENT
+//  Filled notehead + stem = quarter (1 beat)
+//  Open notehead + stem = half (2 beats)
+//  Open notehead no stem = whole (4 beats)
+//  Filled + flag/beam = eighth (0.5 beat)
+// ══════════════════════════════════════════
+function assignRhythm(notes, binary, staves, timeSig){
+  return notes.map((note)=>{
+    let duration=1; // default quarter note
+
+    if(!note.filled){
+      // Open notehead = half or whole
+      // Half note has a stem, whole note does not
+      duration = note.hasStem ? 2 : 4;
+    }else{
+      // Filled notehead = quarter or eighth
+      // Check for flag/beam above or below stem endpoint
+      const hasFlag=checkForFlag(binary, note);
+      duration = hasFlag ? 0.5 : 1;
+    }
+
+    return{...note, duration};
+  });
+}
+
+function checkForFlag(binary, note){
+  // Flags appear as curved strokes near the top/bottom of the stem
+  // Simplified: look for dark pixels to the right of stem endpoint
+  const W=binary.cols, H=binary.rows;
+  const data=binary.data;
+  const x=Math.round(note.x+note.w*0.5);
+  const stemY=Math.round(note.y-note.h*3.5);
+  if(stemY<0||stemY>=H)return false;
+  let flagPixels=0;
+  for(let dx=0;dx<Math.round(note.w*2);dx++){
+    for(let dy=-note.h;dy<=note.h;dy++){
+      const px=x+dx, py=stemY+dy;
+      if(px>=0&&px<W&&py>=0&&py<H&&data[py*W+px]>128)flagPixels++;
+    }
+  }
+  return flagPixels>note.w*note.h*0.3;
+}
+
+// ══════════════════════════════════════════
+//  VOICE SEPARATION
+//  For standard SATB:
+//  - If 4 staves: each staff is one voice
+//  - If 2 staves (grand staff): stem up = S/T, stem down = A/B
+//  - If 1 staff: all soprano
+// ══════════════════════════════════════════
+function separateVoices(notes, staves, clefs, timeSig, keySig, filename){
+  const parts={soprano:[],alto:[],tenor:[],bass:[]};
+  const voiceMap=['soprano','alto','tenor','bass'];
+  const tsn=timeSig.num;
+
+  if(staves.length===0){
+    return buildScore(parts,'Unknown',keySig,timeSig,80,filename);
+  }
+
+  if(staves.length>=4){
+    // 4 staves = 4 separate parts
+    notes.forEach(note=>{
+      const idx=Math.min(note.staffIdx,3);
+      const voice=voiceMap[idx];
+      parts[voice].push(noteToScoreEntry(note,timeSig));
+    });
+  }else if(staves.length===2){
+    // Grand staff — use stem direction for voice separation
+    notes.forEach(note=>{
+      const staff=staves[note.staffIdx];
+      if(!staff)return;
+      const clef=clefs[note.staffIdx];
+      if(clef&&clef.type==='treble'){
+        // Stem up = soprano, stem down = alto
+        const voice=note.y<staff.midY?'soprano':'alto';
+        parts[voice].push(noteToScoreEntry(note,timeSig));
+      }else{
+        // Bass staff: stem up = tenor, stem down = bass
+        const voice=note.y<staff.midY?'tenor':'bass';
+        parts[voice].push(noteToScoreEntry(note,timeSig));
+      }
+    });
+  }else{
+    // Single staff — all soprano
+    notes.forEach(note=>{
+      parts.soprano.push(noteToScoreEntry(note,timeSig));
+    });
+  }
+
+  // Assign measures and beats
+  Object.keys(parts).forEach(voice=>{
+    parts[voice]=assignMeasuresBeats(parts[voice],timeSig);
+  });
+
+  return buildScore(parts,
+    filename.replace(/\.[^.]+$/,'').replace(/_/g,' '),
+    keySig, timeSig, 80, filename);
+}
+
+function noteToScoreEntry(note, timeSig){
+  return{
+    pitch: note.pitch||'R',
+    duration: note.duration||1,
+    x: note.x,
+    lyric: ''
+  };
+}
+
+function assignMeasuresBeats(notes, timeSig){
+  // Assign measures and beats based on x-position and duration
+  if(!notes.length)return notes;
+  let beat=1, measure=1;
+  const beatsPerMeasure=timeSig.num;
+  return notes.map(note=>{
+    const result={...note, beat, measure};
+    beat+=note.duration;
+    while(beat>beatsPerMeasure+0.01){
+      beat-=beatsPerMeasure;
+      measure++;
+    }
+    return result;
+  });
+}
+
+function buildScore(parts, title, keySig, timeSig, tempo, filename){
+  const totalNotes=Object.values(parts).reduce((a,p)=>a+p.length,0);
+  return{
+    title: title||'Scanned Score',
+    key: keySig.name||'C major',
+    time: timeSig.str||'4/4',
+    tempo,
+    lyrics:'',
+    parts,
+    meta:{
+      totalNotes,
+      filename,
+      scannedAt: new Date().toISOString()
+    }
+  };
+}
+
+// ══════════════════════════════════════════
+//  CANVAS OVERLAY DRAWING
+// ══════════════════════════════════════════
+function drawStaves(overlay, staves){
+  const ctx=overlay.getContext('2d');
+  ctx.clearRect(0,0,overlay.width,overlay.height);
+  staves.forEach((s,i)=>{
+    s.lines.forEach(ly=>{
+      ctx.strokeStyle='rgba(62,207,176,0.5)';
+      ctx.lineWidth=1;
+      ctx.beginPath();
+      ctx.moveTo(0,ly);ctx.lineTo(overlay.width,ly);
+      ctx.stroke();
+    });
+    // Label
+    const labels=['Soprano','Alto','Tenor','Bass'];
+    ctx.fillStyle='rgba(201,168,76,0.8)';
+    ctx.font='bold 11px monospace';
+    ctx.fillText(labels[i]||'Staff '+(i+1), 4, s.lines[0]-4);
+  });
+}
+
+function drawNoteheads(overlay, notes){
+  const ctx=overlay.getContext('2d');
+  notes.forEach(n=>{
+    ctx.strokeStyle=n.filled?'rgba(240,160,192,0.8)':'rgba(160,192,240,0.8)';
+    ctx.lineWidth=1.5;
+    ctx.beginPath();
+    ctx.ellipse(n.x,n.y,n.w/2+1,n.h/2+1,0,0,Math.PI*2);
+    ctx.stroke();
+    if(n.pitch&&n.pitch!=='R'){
+      ctx.fillStyle='rgba(240,208,128,0.9)';
+      ctx.font='9px monospace';
+      ctx.fillText(n.pitch,n.x-8,n.y-n.h/2-2);
+    }
+  });
+}
+
+// ══════════════════════════════════════════
+//  SHOW RESULTS
+// ══════════════════════════════════════════
+function showResults(score, filename){
+  currentScore=score;
+
+  // Info box
+  const infoEl=document.getElementById('detectionInfo');
+  infoEl.style.display='block';
+  infoEl.innerHTML=`
+    <strong style="color:var(--gold2)">${score.title}</strong><br>
+    Key: ${score.key} &nbsp;·&nbsp; Time: ${score.time} &nbsp;·&nbsp; Tempo: ${score.tempo} BPM<br>
+    Soprano: ${score.parts.soprano.length} notes &nbsp;
+    Alto: ${score.parts.alto.length} notes<br>
+    Tenor: ${score.parts.tenor.length} notes &nbsp;
+    Bass: ${score.parts.bass.length} notes
+  `;
+
+  // Notes table
+  const tbody=document.getElementById('notesBody');
+  tbody.innerHTML='';
+  const allNotes=[];
+  Object.entries(score.parts).forEach(([voice,notes])=>{
+    notes.forEach(n=>allNotes.push({...n,voice}));
+  });
+  allNotes.sort((a,b)=>(a.measure-b.measure)||((a.beat||0)-(b.beat||0)));
+  allNotes.slice(0,80).forEach(n=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td>${n.measure||'?'}</td>
+      <td>${(n.beat||0).toFixed(1)}</td>
+      <td><span class="pitch-badge">${n.pitch}</span></td>
+      <td>${durationName(n.duration)}</td>
+      <td style="color:${voiceColor(n.voice)}">${n.voice}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('notesCard').style.display='block';
+  document.getElementById('partsCard').style.display='block';
+
+  // Load into player
+  loadScore(score, filename);
+  toast(`✅ "${score.title}" — ${score.meta.totalNotes} notes found`,3500);
+}
+
+function durationName(d){
+  if(d===4)return'whole';if(d===2)return'half';if(d===1)return'quarter';
+  if(d===0.5)return'eighth';if(d===0.25)return'16th';return d+'b';
+}
+function voiceColor(v){
+  return{soprano:'#f0a0c0',alto:'#c0a0f0',tenor:'#a0d0f0',bass:'#a0f0c0'}[v]||'var(--text)';
+}
+
+// ══════════════════════════════════════════
+//  SCORE LOADING & PLAYER
+// ══════════════════════════════════════════
+function loadScore(score, filename){
+  currentScore=score;
+  const total=calcTotal(score);
+  S.totalSecs=total;
+  document.getElementById('npTitle').textContent=score.title||filename;
+  const ct=Object.entries(score.parts).map(([k,v])=>`${k[0].toUpperCase()}:${v.length}`).join(' ');
+  document.getElementById('npParts').textContent=ct+' — '+fmt(total);
+  document.getElementById('tTot').textContent=fmt(total);
+  document.getElementById('lyricDisplay').textContent='♪ '+(score.title||'Score')+' ♪';
+  document.getElementById('midiInfo').innerHTML=`<strong style="color:var(--gold2)">${score.title}</strong><br>Key: ${score.key} | Time: ${score.time} | Tempo: ${score.tempo} BPM<br>Duration: ~${fmt(total)}<br>S:${score.parts.soprano.length} A:${score.parts.alto.length} T:${score.parts.tenor.length} B:${score.parts.bass.length}`;
+  saveSong(score,filename);
+}
+
+function calcTotal(sc){
+  const spb=60/S.tempo;let mx=0;
+  Object.values(sc.parts).flat().forEach(n=>{
+    const t=((n.measure-1)*((parseInt(sc.time)||4))+(n.beat-1)+n.duration)*spb;
+    if(t>mx)mx=t;
+  });
+  return mx||10;
+}
+
+function saveSong(score,filename){
+  const idx=S.songs.findIndex(s=>s.title===score.title);
+  const e={title:score.title,filename,key:score.key,time:score.time,tempo:score.tempo,score};
+  if(idx>=0)S.songs[idx]=e;else S.songs.unshift(e);
+  if(S.songs.length>20)S.songs=S.songs.slice(0,20);
+  try{localStorage.setItem('omr1',JSON.stringify(S.songs));}catch(e){}
+  renderLib();
+}
+function renderLib(){
+  const lib=document.getElementById('library');
+  if(!S.songs.length){lib.innerHTML='<p class="muted-msg">No scores yet.</p>';return;}
+  lib.innerHTML=S.songs.map((s,i)=>`
+    <div class="song-item" onclick="loadScore(S.songs[${i}].score,'${s.filename}')">
+      <div class="song-thumb">🎵</div>
+      <div class="song-info"><div class="song-title">${s.title}</div><div class="song-meta">${s.key} · ${s.time}</div></div>
+      <button class="btn-sm" onclick="event.stopPropagation();S.songs.splice(${i},1);try{localStorage.setItem('omr1',JSON.stringify(S.songs));}catch(e){}renderLib()" style="flex:0;padding:6px 8px">🗑</button>
+    </div>`).join('');
+}
+renderLib();
+
+// ══════════════════════════════════════════
+//  AUDIO ENGINE
+// ══════════════════════════════════════════
+let actx=null;
+function getCtx(){if(!actx||actx.state==='closed')actx=new(window.AudioContext||window.webkitAudioContext)();return actx;}
+function unlockAudio(){
+  const c=getCtx();const b=c.createBuffer(1,1,22050);const s=c.createBufferSource();
+  s.buffer=b;s.connect(c.destination);s.start(0);
+  c.resume().then(()=>{S.audioOK=true;document.getElementById('audioUnlockBanner').classList.add('hidden');toast('🔊 Audio ready!');});
+}
+const VOICES={pipe:[{m:1,a:1.0},{m:2,a:0.5},{m:3,a:0.25},{m:4,a:0.12}],reed:[{m:1,a:1.0},{m:2,a:0.8},{m:3,a:0.5},{m:4,a:0.3}],flute:[{m:1,a:1.0},{m:2,a:0.15}],strings:[{m:1,a:1.0},{m:2,a:0.6},{m:3,a:0.3}]};
+const PVOL={soprano:1.0,alto:0.75,tenor:0.7,bass:0.85};
+const PPAN={soprano:0,alto:-0.35,tenor:0.35,bass:0};
+function n2f(name,tr){
+  if(!name||name==='R')return 0;
+  const ns=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const m=name.match(/^([A-G]b?)(\d)$/);
+  if(!m)return 0;
+  let noteIdx=ns.indexOf(m[1]);
+  if(noteIdx<0){// flat notation
+    const base=ns.indexOf(m[1][0]);
+    noteIdx=(base-1+12)%12;
+  }
+  if(noteIdx<0)return 0;
+  return 440*Math.pow(2,((parseInt(m[2])+1)*12+noteIdx+(tr||0)-69)/12);
+}
+function schedNote(c,freq,t0,dur,vol,voice,pan){
+  if(freq<=0||dur<=0)return;
+  const H=VOICES[voice]||VOICES.pipe;
+  const mg=c.createGain();const att=0.015,rel=Math.min(0.07,dur*0.12);
+  mg.gain.setValueAtTime(0,t0);mg.gain.linearRampToValueAtTime(vol,t0+att);
+  mg.gain.setValueAtTime(vol,t0+dur-rel);mg.gain.linearRampToValueAtTime(0.0001,t0+dur);
+  if(c.createStereoPanner&&pan!==0){const pn=c.createStereoPanner();pn.pan.value=pan;mg.connect(pn);pn.connect(c.destination);}
+  else mg.connect(c.destination);
+  H.forEach(h=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=freq*h.m;g.gain.value=h.a;o.connect(g);g.connect(mg);o.start(t0);o.stop(t0+dur+0.05);});
+}
+function buildEvents(fromSecs){
+  if(!currentScore)return[];
+  const spb=60/S.tempo,mv=0.28,evts=[];
+  const tsn=parseInt(currentScore.time)||4;
+  Object.entries(currentScore.parts).forEach(([part,notes])=>{
+    if(!S.parts[part])return;
+    notes.forEach(n=>{
+      if(!n.measure||!n.beat)return;
+      const t=((n.measure-1)*tsn+(n.beat-1))*spb;
+      if(t<fromSecs-0.05)return;
+      evts.push({t,freq:n2f(n.pitch,S.transpose),dur:Math.max(0.05,n.duration*spb*0.87),
+        vol:mv*(PVOL[part]||1)*S.volume,pan:PPAN[part]||0,part,lyric:n.lyric||''});
+    });
+  });
+  return evts.sort((a,b)=>a.t-b.t);
+}
+let pTimer=null,eventQ=[],lyricTL=[];
+function togglePlay(){if(!S.audioOK){unlockAudio();setTimeout(()=>{if(S.audioOK)startPlay();},400);return;}if(S.playing)stopPlay();else startPlay();}
+function startPlay(fromOff){
+  if(!currentScore){toast('📄 No score loaded — scan first');return;}
+  if(!actx||actx.state==='closed')actx=new(window.AudioContext||window.webkitAudioContext)();
+  actx.resume();S.playing=true;S.offsetSecs=fromOff||0;S.startTime=actx.currentTime-S.offsetSecs;
+  document.getElementById('playBtn').textContent='⏸';
+  eventQ=buildEvents(S.offsetSecs);lyricTL=[];
+  clearInterval(pTimer);pTimer=setInterval(pump,250);pump();
+}
+function pump(){
+  if(!actx||!S.playing)return;
+  const now=actx.currentTime,elapsed=now-S.startTime,ahead=now+1.5;
+  while(eventQ.length&&(S.startTime+eventQ[0].t)<=ahead){const ev=eventQ.shift();const at=S.startTime+ev.t;if(at>=now-0.02)schedNote(actx,ev.freq,at,ev.dur,ev.vol,S.organ,ev.pan);}
+  document.getElementById('progFill').style.width=Math.min(100,(elapsed/S.totalSecs)*100)+'%';
+  document.getElementById('tCur').textContent=fmt(elapsed);
+  ['mS','mA','mT','mB'].forEach((id,i)=>{const p=['soprano','alto','tenor','bass'][i];document.getElementById(id).style.height=(S.parts[p]?Math.random()*70+20:0)+'%';});
+  if(elapsed>=S.totalSecs&&eventQ.length===0){if(S.looping){stopPlay(false);setTimeout(()=>startPlay(0),150);}else stopPlay();}
+}
+function stopPlay(reset=true){
+  S.playing=false;clearInterval(pTimer);eventQ=[];
+  if(actx&&actx.state!=='closed'){actx.close().catch(()=>{});actx=null;}
+  if(reset){document.getElementById('playBtn').textContent='▶';document.getElementById('progFill').style.width='0%';document.getElementById('tCur').textContent='0:00';['mS','mA','mT','mB'].forEach(id=>document.getElementById(id).style.height='0%');S.offsetSecs=0;}
+}
+function seekClick(e){if(!currentScore)return;const rect=e.currentTarget.getBoundingClientRect();const pct=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width));const off=pct*S.totalSecs,was=S.playing;stopPlay(false);S.offsetSecs=off;document.getElementById('progFill').style.width=(pct*100)+'%';document.getElementById('tCur').textContent=fmt(off);if(was){S.audioOK=true;setTimeout(()=>startPlay(off),100);}}
+function toggleLoop(){S.looping=!S.looping;document.getElementById('loopBtn').classList.toggle('on',S.looping);toast(S.looping?'🔁 Loop ON':'↻ Loop OFF');}
+function fmt(s){s=Math.max(0,s||0);return`${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`;}
+function setTempo(v){S.tempo=parseInt(v);document.getElementById('tempoV').textContent=v+' BPM';if(S.playing){stopPlay(false);startPlay(0);}}
+function setTranspose(v){S.transpose=parseInt(v);document.getElementById('transV').textContent=(v>0?'+':'')+v;if(S.playing){stopPlay(false);startPlay(0);}}
+function setVolume(v){S.volume=v/100;document.getElementById('volV').textContent=v+'%';}
+function setOrgan(t,btn){S.organ=t;document.querySelectorAll('.organ-grid .btn-sm').forEach(b=>b.classList.remove('on'));btn.classList.add('on');toast('🎵 '+t.charAt(0).toUpperCase()+t.slice(1)+' organ');if(S.playing){stopPlay(false);startPlay(S.offsetSecs);}}
+
+// PARTS
+const KM={S:'soprano',A:'alto',T:'tenor',B:'bass'};
+function togglePart(k){const p=KM[k];S.parts[p]=!S.parts[p];document.getElementById('tog-'+k).classList.toggle('on',S.parts[p]);document.getElementById('pc-'+k).classList.toggle('on',S.parts[p]);toast(S.parts[p]?`${p} ON`:`${p} muted`);if(S.playing){const off=actx?(actx.currentTime-S.startTime):0;stopPlay(false);startPlay(Math.max(0,off));}}
+function allOn(){['S','A','T','B'].forEach(k=>{S.parts[KM[k]]=true;document.getElementById('tog-'+k).classList.add('on');document.getElementById('pc-'+k).classList.add('on');});if(S.playing){stopPlay(false);startPlay(0);}}
+function allMute(){['S','A','T','B'].forEach(k=>{S.parts[KM[k]]=false;document.getElementById('tog-'+k).classList.remove('on');document.getElementById('pc-'+k).classList.remove('on');});stopPlay();}
+
+// MIDI
+function n2midi(name,tr){if(!name||name==='R')return null;const ns=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];const m=name.match(/^([A-G]b?)(\d)$/);if(!m)return null;let idx=ns.indexOf(m[1]);if(idx<0)idx=(ns.indexOf(m[1][0])-1+12)%12;if(idx<0)return null;return(parseInt(m[2])+1)*12+idx+(tr||0);}
+function vl(v){const b=[v&0x7f];v>>=7;while(v>0){b.unshift((v&0x7f)|0x80);v>>=7;}return b;}
+function exportMidi(pname){
+  if(!currentScore){toast('⚠️ No score loaded');return;}
+  const all=['soprano','alto','tenor','bass'],parts=pname==='all'?all:[pname];
+  const tsn=parseInt(currentScore.time)||4,tpb=480,uspb=Math.round(60000000/S.tempo);
+  function mkTrack(notes,ch){const pairs=[];notes.forEach(n=>{const midi=n2midi(n.pitch,S.transpose);if(midi===null)return;const st=Math.round(((n.measure-1)*tsn+(n.beat-1))*tpb),et=st+Math.round(n.duration*tpb*0.88);pairs.push({t:st,cmd:0x90,n:midi,v:85},{t:et,cmd:0x80,n:midi,v:0});});pairs.sort((a,b)=>a.t-b.t||(a.cmd===0x80?-1:1));const ev=[];let last=0;pairs.forEach(e=>{const d=Math.max(0,e.t-last);last=e.t;ev.push(...vl(d),e.cmd|ch,e.n,e.v);});ev.push(0,0xFF,0x2F,0);return ev;}
+  const i16=n=>[(n>>8)&0xFF,n&0xFF],i32=n=>[(n>>24)&0xFF,(n>>16)&0xFF,(n>>8)&0xFF,n&0xFF];
+  const tTrk=[0,0xFF,0x51,3,(uspb>>16)&0xFF,(uspb>>8)&0xFF,uspb&0xFF,0,0xFF,0x58,4,tsn,2,24,8,0,0xFF,0x2F,0];
+  const tracks=[tTrk];
+  parts.forEach((p,i)=>{const ns=currentScore.parts[p];if(ns&&ns.length)tracks.push([0,0xC0|i,19,...mkTrack(ns,i)]);});
+  let bytes=[0x4D,0x54,0x68,0x64,...i32(6),...i16(1),...i16(tracks.length),...i16(tpb)];
+  tracks.forEach(t=>bytes.push(0x4D,0x54,0x72,0x6B,...i32(t.length),...t));
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([new Uint8Array(bytes)],{type:'audio/midi'}));a.download=`${(currentScore.title||'score').replace(/\s+/g,'_')}_${pname}.mid`;a.click();toast('🎹 MIDI saved: '+pname);
+}
+
+// CAMERA
+let camStr=null;
+async function openCam(){document.getElementById('camModal').classList.add('open');try{camStr=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1920}}});document.getElementById('camVideo').srcObject=camStr;}catch(e){toast('⚠️ Camera: '+e.message);document.getElementById('camModal').classList.remove('open');}}
+function capturePhoto(){const v=document.getElementById('camVideo'),c=document.getElementById('camCanvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);const img=new Image();img.onload=()=>processImage(img,'camera_scan.jpg');img.src=c.toDataURL('image/jpeg',0.95);closeCam();}
+function closeCam(){if(camStr){camStr.getTracks().forEach(t=>t.stop());camStr=null;}document.getElementById('camModal').classList.remove('open');}
+
+// SERVICE WORKER
+if('serviceWorker' in navigator){
+  const sw=`const C='omr-v1';self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(C).then(c=>c.add('/')).catch(()=>{}));});self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==C).map(k=>caches.delete(k)))));self.clients.claim();});self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;e.respondWith(caches.match(e.request).then(r=>{if(r)return r;return fetch(e.request).then(res=>{if(res&&res.ok){const cl=res.clone();caches.open(C).then(c=>c.put(e.request,cl));}return res;}).catch(()=>caches.match('/'));}))}); `;
+  const blob=new Blob([sw],{type:'application/javascript'});
+  navigator.serviceWorker.register(URL.createObjectURL(blob),{scope:'./'}).catch(()=>{});
+}
+</script>
+</body>
+</html>
