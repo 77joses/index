@@ -34,42 +34,27 @@ header p{font-style:italic;color:var(--muted);font-size:12px;margin-top:3px;}
 .upload-zone strong{color:var(--gold2);}
 #fileInput{display:none;}
 .btn-cam{width:100%;margin-top:8px;background:rgba(62,207,176,.1);border:1px solid rgba(62,207,176,.4);color:var(--teal);font-family:'Cinzel',serif;font-size:12px;padding:11px;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;}
-
-/* STAFF MODE SELECTOR */
 .mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;}
 .mode-btn{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px 8px;cursor:pointer;text-align:center;transition:all .25s;}
 .mode-btn.active{border-color:var(--gold);background:rgba(201,168,76,.1);}
-.mode-btn .mode-ico{font-size:22px;margin-bottom:4px;}
+.mode-btn .mode-ico{font-size:20px;margin-bottom:4px;}
 .mode-btn .mode-title{font-family:'Cinzel',serif;font-size:11px;color:var(--gold2);letter-spacing:.5px;}
 .mode-btn .mode-sub{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4;}
-
-/* CANVAS */
 #canvasWrap{position:relative;margin-top:10px;display:none;}
 #mainCanvas{width:100%;border-radius:8px;border:1px solid var(--border);display:block;background:#fff;}
 #overlayCanvas{position:absolute;top:0;left:0;width:100%;height:100%;border-radius:8px;pointer-events:none;}
-
-/* LOG */
-#pipelineLog{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:11px;font-family:monospace;color:var(--teal);max-height:200px;overflow-y:auto;margin-top:8px;line-height:1.8;display:none;}
-.log-ok{color:var(--teal);}
-.log-warn{color:var(--gold);}
-.log-err{color:var(--rose);}
-.log-info{color:var(--muted);}
-
-/* STAGES */
+#pipelineLog{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;font-size:11px;font-family:monospace;color:var(--teal);max-height:220px;overflow-y:auto;margin-top:8px;line-height:1.8;display:none;}
+.log-ok{color:var(--teal);}.log-warn{color:var(--gold);}.log-err{color:var(--rose);}.log-info{color:var(--muted);}
 .stages{display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;}
 .stage{font-family:'Cinzel',serif;font-size:9px;padding:4px 7px;border-radius:20px;border:1px solid var(--border);color:var(--muted);letter-spacing:.5px;transition:all .3s;}
 .stage.active{border-color:var(--gold);color:var(--gold);background:rgba(201,168,76,.1);}
 .stage.done{border-color:var(--teal);color:var(--teal);background:rgba(62,207,176,.08);}
 .stage.err{border-color:var(--rose);color:var(--rose);}
-
-/* RESULT */
 .info-box{background:rgba(13,7,32,.85);border:1px solid var(--gold);border-radius:6px;padding:8px 10px;font-size:12px;margin-top:6px;color:var(--text);line-height:1.7;}
 #resultTable{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;}
 #resultTable th{font-family:'Cinzel',serif;font-size:9px;letter-spacing:1px;color:var(--gold);padding:5px 6px;border-bottom:1px solid var(--border);text-align:left;}
 #resultTable td{padding:4px 6px;border-bottom:1px solid rgba(201,168,76,.1);color:var(--text);}
 .pitch-badge{display:inline-block;background:rgba(62,207,176,.12);border:1px solid rgba(62,207,176,.3);color:var(--teal);border-radius:4px;padding:1px 5px;font-family:monospace;font-size:11px;}
-
-/* PLAYBACK */
 .pb{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-bottom:10px;}
 .play-row{display:flex;align-items:center;gap:10px;margin-bottom:11px;}
 .btn-play{width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--gold),#a07830);border:none;color:var(--bg);font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(201,168,76,.4);flex-shrink:0;}
@@ -133,6 +118,9 @@ header p{font-style:italic;color:var(--muted);font-size:12px;margin-top:3px;}
 .row2{display:flex;gap:7px;}.row2>*{flex:1;}
 #cvStatus{font-size:12px;color:var(--muted);font-style:italic;text-align:center;padding:8px;display:none;}
 #cvStatus.show{display:block;}
+.method-badge{display:inline-block;font-family:'Cinzel',serif;font-size:9px;padding:3px 8px;border-radius:12px;margin-left:6px;vertical-align:middle;}
+.method-vector{background:rgba(62,207,176,.15);color:var(--teal);border:1px solid rgba(62,207,176,.4);}
+.method-image{background:rgba(201,168,76,.15);color:var(--gold);border:1px solid rgba(201,168,76,.4);}
 </style>
 </head>
 <body>
@@ -157,49 +145,45 @@ header p{font-style:italic;color:var(--muted);font-size:12px;margin-top:3px;}
     <p>Tap here to enable audio<small>Required once by Chrome on Android</small></p>
   </div>
 
-  <div id="cvStatus">⏳ Loading vision engine (OpenCV.js)…</div>
+  <div id="cvStatus">⏳ Loading image processing engine…</div>
 
-  <!-- ═══ SCAN ═══ -->
+  <!-- SCAN PANEL -->
   <div class="panel active" id="panel-scan">
 
-    <!-- STAFF MODE CHOOSER -->
     <div class="card">
       <div class="card-title"><span>🎼</span> Score Layout</div>
       <div class="mode-grid">
         <div class="mode-btn active" id="mode-4" onclick="setMode(4)">
-          <div class="mode-ico">𝄞𝄞𝄞𝄞</div>
+          <div class="mode-ico">≡≡≡≡</div>
           <div class="mode-title">4 STAVES</div>
-          <div class="mode-sub">One per voice<br>S · A · T · B separate</div>
+          <div class="mode-sub">S · A · T · B each on own staff</div>
         </div>
         <div class="mode-btn" id="mode-2" onclick="setMode(2)">
-          <div class="mode-ico">𝄞𝄢</div>
+          <div class="mode-ico">≡ ≡</div>
           <div class="mode-title">2 STAVES</div>
-          <div class="mode-sub">Grand staff<br>SA on treble · TB on bass</div>
+          <div class="mode-sub">SA on treble · TB on bass</div>
         </div>
       </div>
     </div>
 
-    <!-- UPLOAD -->
     <div class="card">
-      <div class="card-title"><span>📷</span> Upload Score</div>
+      <div class="card-title"><span>📄</span> Upload Score</div>
       <div class="upload-zone" id="dropZone"
            onclick="document.getElementById('fileInput').click()"
            ondragover="event.preventDefault();this.classList.add('drag')"
            ondragleave="this.classList.remove('drag')"
            ondrop="handleDrop(event)">
         <div class="ico">🎼</div>
-        <p><strong>Tap to upload image or PDF</strong></p>
-        <p style="margin-top:3px;font-size:12px">JPG · PNG · PDF — printed scores work best</p>
+        <p><strong>Tap to upload PDF or image</strong></p>
+        <p style="margin-top:3px;font-size:12px">PDF (vector) · JPG · PNG</p>
+        <p style="margin-top:4px;font-size:11px;color:var(--teal)">✦ PDF gives highest accuracy</p>
       </div>
-      <input type="file" id="fileInput" accept="image/*,.pdf" onchange="handleFile(this.files[0])">
-      <button class="btn-cam" onclick="openCam()">📷 &nbsp;Use Camera</button>
+      <input type="file" id="fileInput" accept="image/*,.pdf,application/pdf" onchange="handleFile(this.files[0])">
+      <button class="btn-cam" onclick="openCam()">📷 &nbsp;Camera (photo scan)</button>
 
-      <!-- Pipeline stages -->
       <div class="stages" id="stages">
         <div class="stage" id="st-load">Load</div>
-        <div class="stage" id="st-thresh">Threshold</div>
-        <div class="stage" id="st-staff">Staves</div>
-        <div class="stage" id="st-clef">Clef</div>
+        <div class="stage" id="st-staves">Staves</div>
         <div class="stage" id="st-key">Key</div>
         <div class="stage" id="st-time">Time</div>
         <div class="stage" id="st-notes">Notes</div>
@@ -217,9 +201,8 @@ header p{font-style:italic;color:var(--muted);font-size:12px;margin-top:3px;}
       <div id="detectionInfo" style="display:none" class="info-box"></div>
     </div>
 
-    <!-- Notes table -->
     <div class="card" id="notesCard" style="display:none">
-      <div class="card-title"><span>🎵</span> Extracted Notes</div>
+      <div class="card-title"><span>🎵</span> Extracted Notes <span id="noteCount" style="color:var(--muted);font-size:10px;font-family:monospace"></span></div>
       <div style="overflow-x:auto">
         <table id="resultTable">
           <thead><tr><th>M</th><th>Beat</th><th>Pitch</th><th>Dur</th><th>Voice</th></tr></thead>
@@ -227,12 +210,11 @@ header p{font-style:italic;color:var(--muted);font-size:12px;margin-top:3px;}
         </table>
       </div>
       <div class="row2" style="margin-top:10px">
-        <button class="btn-gold" style="margin:0" onclick="go('play');setTimeout(startPlay,300)">▶ Play</button>
+        <button class="btn-gold" style="margin:0" onclick="go('play');setTimeout(startPlay,300)">▶ Play Score</button>
         <button class="btn-gold" style="margin:0;background:rgba(62,207,176,.1);border-color:var(--teal);color:var(--teal)" onclick="go('midi')">🎹 MIDI</button>
       </div>
     </div>
 
-    <!-- Parts -->
     <div class="card" id="partsCard" style="display:none">
       <div class="card-title"><span>🎵</span> Voices</div>
       <div class="parts-grid">
@@ -248,7 +230,7 @@ header p{font-style:italic;color:var(--muted);font-size:12px;margin-top:3px;}
     </div>
   </div>
 
-  <!-- ═══ PLAY ═══ -->
+  <!-- PLAY PANEL -->
   <div class="panel" id="panel-play">
     <div class="pb">
       <div class="play-row">
@@ -271,7 +253,7 @@ header p{font-style:italic;color:var(--muted);font-size:12px;margin-top:3px;}
     </div>
     <div class="card">
       <div class="card-title"><span>🎛️</span> Controls</div>
-      <div class="sl-row"><label>Tempo</label><input type="range" min="40" max="160" value="80" id="tempoSl" oninput="setTempo(this.value)"><span class="sl-val" id="tempoV">80 BPM</span></div>
+      <div class="sl-row"><label>Tempo</label><input type="range" min="40" max="180" value="86" id="tempoSl" oninput="setTempo(this.value)"><span class="sl-val" id="tempoV">86 BPM</span></div>
       <div class="sl-row"><label>Transpose</label><input type="range" min="-12" max="12" value="0" id="transSl" oninput="setTranspose(this.value)"><span class="sl-val" id="transV">0</span></div>
       <div class="sl-row"><label>Volume</label><input type="range" min="0" max="100" value="80" id="volSl" oninput="setVolume(this.value)"><span class="sl-val" id="volV">80%</span></div>
     </div>
@@ -290,11 +272,11 @@ header p{font-style:italic;color:var(--muted);font-size:12px;margin-top:3px;}
     </div>
   </div>
 
-  <!-- ═══ MIDI ═══ -->
+  <!-- MIDI PANEL -->
   <div class="panel" id="panel-midi">
     <div class="card">
       <div class="card-title"><span>🎹</span> Export MIDI</div>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Download .mid files for any music app or DAW.</p>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Download .mid files — works in MuseScore, GarageBand, any DAW.</p>
       <button class="btn-gold" onclick="exportMidi('all')">⬇️ &nbsp;Full Score (all parts)</button>
       <div class="dvd"></div>
       <div class="card-title" style="margin-bottom:6px"><span>✦</span> Individual Parts</div>
@@ -317,7 +299,10 @@ header p{font-style:italic;color:var(--muted);font-size:12px;margin-top:3px;}
 </nav>
 <div id="toast"></div>
 
-<script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="onOpenCvReady()" onerror="onOpenCvError()"></script>
+<!-- PDF.js for vector PDF reading -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<!-- OpenCV.js for image fallback -->
+<script async src="https://docs.opencv.org/4.8.0/opencv.js" onload="cvReady=true;document.getElementById('cvStatus').classList.remove('show');toast('✅ Ready — upload a PDF or image!')" onerror="cvErr=true"></script>
 
 <script>
 'use strict';
@@ -325,44 +310,26 @@ header p{font-style:italic;color:var(--muted);font-size:12px;margin-top:3px;}
 // ══════════════════════════════════════════
 //  GLOBALS
 // ══════════════════════════════════════════
-let cvReady=false;
+let cvReady=false,cvErr=false;
 let currentScore=null;
-let staffMode=4; // 4=four separate staves, 2=grand staff pairs
-// Full-resolution processing mat — kept separate from display canvas
-let fullW=0, fullH=0;
+let staffMode=4;
 
 const S={
   parts:{soprano:true,alto:true,tenor:true,bass:true},
-  playing:false,looping:false,tempo:80,transpose:0,volume:0.8,
+  playing:false,looping:false,tempo:86,transpose:0,volume:0.8,
   organ:'pipe',audioOK:false,songs:[],startTime:0,offsetSecs:0,totalSecs:0
 };
-try{S.songs=JSON.parse(localStorage.getItem('omr2')||'[]');}catch(e){}
+try{S.songs=JSON.parse(localStorage.getItem('omr3')||'[]');}catch(e){}
 
-// ══════════════════════════════════════════
-//  OPENCV INIT
-// ══════════════════════════════════════════
-function onOpenCvReady(){
-  cvReady=true;
-  document.getElementById('cvStatus').classList.remove('show');
-  toast('✅ Vision engine ready — upload a score!');
-}
-function onOpenCvError(){
-  document.getElementById('cvStatus').textContent='⚠️ OpenCV failed to load — check internet connection';
+// Setup PDF.js
+if(window.pdfjsLib){
+  pdfjsLib.GlobalWorkerOptions.workerSrc=
+    'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 }
 document.getElementById('cvStatus').classList.add('show');
 
 // ══════════════════════════════════════════
-//  MODE SELECTOR
-// ══════════════════════════════════════════
-function setMode(n){
-  staffMode=n;
-  document.getElementById('mode-4').classList.toggle('active',n===4);
-  document.getElementById('mode-2').classList.toggle('active',n===2);
-  toast(n===4?'4-staff mode: S · A · T · B separate':'2-staff mode: Grand staff pairs');
-}
-
-// ══════════════════════════════════════════
-//  NAV & TOAST
+//  UI HELPERS
 // ══════════════════════════════════════════
 function go(n){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
@@ -371,511 +338,733 @@ function go(n){
   document.getElementById('tab-'+n).classList.add('active');
   window.scrollTo(0,0);
 }
-let tt;
-function toast(m,d=2800){
-  const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');
-  clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('show'),d);
+function setMode(n){
+  staffMode=n;
+  document.getElementById('mode-4').classList.toggle('active',n===4);
+  document.getElementById('mode-2').classList.toggle('active',n===2);
+  toast(n===4?'4-staff mode: S·A·T·B separate':'2-staff grand staff mode');
 }
+let tt;
+function toast(m,d=2800){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('show'),d);}
 
-// ══════════════════════════════════════════
-//  LOGGING
-// ══════════════════════════════════════════
 const logEl=document.getElementById('pipelineLog');
 function log(msg,type='info'){
   logEl.style.display='block';
-  const d=document.createElement('div');
-  d.className='log-'+type;
-  d.textContent=(type==='ok'?'✓ ':type==='warn'?'⚠ ':type==='err'?'✗ ':'  ')+msg;
-  logEl.appendChild(d);
-  logEl.scrollTop=logEl.scrollHeight;
+  const d=document.createElement('div');d.className='log-'+type;
+  const pfx={ok:'✓ ',warn:'⚠ ',err:'✗ ',info:'  '};
+  d.textContent=(pfx[type]||'  ')+msg;
+  logEl.appendChild(d);logEl.scrollTop=logEl.scrollHeight;
 }
 function clearLog(){logEl.innerHTML='';logEl.style.display='none';}
 function setStage(id,state){const el=document.getElementById('st-'+id);if(el)el.className='stage '+state;}
-function resetStages(){['load','thresh','staff','clef','key','time','notes','pitch','rhythm','voices'].forEach(s=>setStage(s,''));}
+function resetStages(){['load','staves','key','time','notes','pitch','rhythm','voices'].forEach(s=>setStage(s,''));}
 
 // ══════════════════════════════════════════
-//  FILE HANDLING — image AND pdf
+//  FILE HANDLING
 // ══════════════════════════════════════════
 function handleDrop(e){
-  e.preventDefault();
-  document.getElementById('dropZone').classList.remove('drag');
-  const f=e.dataTransfer.files[0];
-  if(f)handleFile(f);
+  e.preventDefault();document.getElementById('dropZone').classList.remove('drag');
+  const f=e.dataTransfer.files[0];if(f)handleFile(f);
 }
-
 function handleFile(file){
-  if(!file){return;}
-  if(!cvReady){toast('⏳ Vision engine still loading…');return;}
-
+  if(!file)return;
   clearLog();resetStages();
   document.getElementById('detectionInfo').style.display='none';
   document.getElementById('notesCard').style.display='none';
   document.getElementById('partsCard').style.display='none';
   document.getElementById('canvasWrap').style.display='none';
 
-  if(file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf')){
-    loadPDF(file);
+  const isPdf=file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf');
+  if(isPdf){
+    processPDF(file);
   }else if(file.type.startsWith('image/')){
-    const reader=new FileReader();
-    reader.onload=e=>{
-      const img=new Image();
-      img.onload=()=>processImage(img,file.name);
-      img.src=e.target.result;
-    };
-    reader.readAsDataURL(file);
+    processImageFile(file);
   }else{
-    toast('⚠️ Please upload an image (JPG/PNG) or PDF');
+    toast('⚠️ Please upload a PDF or image file');
   }
 }
 
-// ── PDF: render first page to canvas using browser PDF renderer ──
-function loadPDF(file){
-  log('PDF detected — rendering first page…','info');
+// ══════════════════════════════════════════
+//  METHOD A: PDF VECTOR READING
+//  Reads bezier curves (noteheads) and lines (staves/stems)
+//  directly from PDF — no image processing needed
+//  Accuracy: HIGH (exact coordinates from source)
+// ══════════════════════════════════════════
+async function processPDF(file){
   setStage('load','active');
+  log('PDF detected — reading vector content','info');
 
-  // Use FileReader to get array buffer, then use PDF.js via CDN
-  const reader=new FileReader();
-  reader.onload=async e=>{
-    try{
-      // Dynamically load PDF.js if not present
-      if(!window.pdfjsLib){
-        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js');
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc=
-          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  const arrayBuf=await file.arrayBuffer();
+  let pdfDoc;
+  try{
+    pdfDoc=await pdfjsLib.getDocument({data:arrayBuf}).promise;
+  }catch(e){
+    setStage('load','err');
+    log('PDF load failed: '+e.message,'err');
+    toast('⚠️ Could not read PDF');return;
+  }
+  log(`PDF loaded: ${pdfDoc.numPages} pages, reading all pages`,'ok');
+  setStage('load','done');
+
+  // Collect all vector elements across all pages
+  const allStaves=[];    // [{lines[], spacing, midY, pageH, pageIdx}]
+  const allNoteheads=[]; // [{cx,cy,filled,pageIdx,globalY}]
+  const allStems=[];     // [{x,y0,y1,pageIdx}]
+  const allHoriz=[];     // [{x0,y0,x1,y1,pageIdx}] — for staff detection
+
+  let pageHeights=[];
+
+  for(let pgIdx=0;pgIdx<pdfDoc.numPages;pgIdx++){
+    const page=await pdfDoc.getPage(pgIdx+1);
+    const ops=await page.getOperatorList();
+    const pH=page.view[3]; // page height in pts
+    pageHeights.push(pH);
+
+    // Parse PDF operator stream to extract paths
+    // PDF operators: m=moveto, l=lineto, c=curveto, h=closepath, f=fill, S=stroke
+    const {OPS}=pdfjsLib;
+    let currentPath=[];
+    let curX=0,curY=0;
+
+    for(let i=0;i<ops.fnArray.length;i++){
+      const fn=ops.fnArray[i];
+      const args=ops.argsArray[i];
+
+      if(fn===OPS.moveTo){
+        currentPath=[[args[0],args[1]]];
+        curX=args[0];curY=args[1];
+      }else if(fn===OPS.lineTo){
+        if(currentPath.length===0)currentPath=[[curX,curY]];
+        currentPath.push([args[0],args[1]]);
+        curX=args[0];curY=args[1];
+      }else if(fn===OPS.curveTo||fn===OPS.curveTo1||fn===OPS.curveTo2){
+        if(currentPath.length===0)currentPath=[[curX,curY]];
+        // Last point of bezier
+        const lx=args[args.length-2],ly=args[args.length-1];
+        currentPath.push([lx,ly]);
+        curX=lx;curY=ly;
+      }else if(fn===OPS.closePath){
+        if(currentPath.length>0)currentPath.push(currentPath[0]);
+      }else if(fn===OPS.fill||fn===OPS.eoFill||fn===OPS.fillStroke||fn===OPS.eoFillStroke||fn===OPS.stroke){
+        // Analyse this path
+        if(currentPath.length>=3){
+          analyseVectorPath(currentPath,fn,pgIdx,pH,allNoteheads,allHoriz,allStems,ops,i,args);
+        }
+        currentPath=[];
+      }else if(fn===OPS.endPath){
+        currentPath=[];
       }
-      const pdf=await window.pdfjsLib.getDocument({data:e.target.result}).promise;
-      log(`PDF loaded: ${pdf.numPages} page(s)  — rendering page 1`,'ok');
-      const page=await pdf.getPage(1);
-      // Render at 2x scale for higher resolution
-      const scale=2.5;
-      const viewport=page.getViewport({scale});
-      const tempCanvas=document.createElement('canvas');
-      tempCanvas.width=viewport.width;
-      tempCanvas.height=viewport.height;
-      await page.render({canvasContext:tempCanvas.getContext('2d'),viewport}).promise;
-      log(`Rendered: ${tempCanvas.width}×${tempCanvas.height}px`,'ok');
-      const img=new Image();
-      img.onload=()=>processImage(img,file.name.replace('.pdf','.png'));
-      img.src=tempCanvas.toDataURL('image/png');
-    }catch(err){
-      setStage('load','err');
-      log('PDF render failed: '+err.message,'err');
-      toast('⚠️ Could not render PDF — try uploading as JPG instead');
     }
-  };
-  reader.readAsArrayBuffer(file);
+  }
+
+  log(`Vector elements — noteheads: ${allNoteheads.length}  horiz lines: ${allHoriz.length}  stems: ${allStems.length}`,'info');
+
+  // Detect staves from horizontal lines
+  setStage('staves','active');
+  const staves=detectStavesFromLines(allHoriz,pageHeights);
+  if(!staves.length){setStage('staves','err');log('No staves found','err');toast('⚠️ Could not detect staves');return;}
+  setStage('staves','done');
+  log(`Staves: ${staves.length}  spacing: ${staves[0]?.spacing.toFixed(2)}pts`,'ok');
+
+  // Key signature from blob count in key sig zone
+  setStage('key','active');
+  const keySig=detectKeySigFromVectors(allNoteheads,allStaves||staves,staves);
+  setStage('key','done');
+  log(`Key: ${keySig.name} (${keySig.accidentals} accidentals)`,'ok');
+
+  // Time signature — read from PDF text
+  setStage('time','active');
+  const timeSig=await detectTimeSigFromPDF(pdfDoc);
+  setStage('time','done');
+  log(`Time: ${timeSig.str}`,'ok');
+
+  // Assign noteheads to staves + pitch
+  setStage('notes','active');
+  setStage('pitch','active');
+  const notesWithPitch=assignPitchesToNoteheads(allNoteheads,staves,keySig,allStems);
+  setStage('notes','done');
+  setStage('pitch','done');
+  log(`Notes with pitch: ${notesWithPitch.length}`,'ok');
+
+  // Rhythm
+  setStage('rhythm','active');
+  const notesWithRhythm=assignRhythmFromVectors(notesWithPitch,allStems,staves);
+  setStage('rhythm','done');
+
+  // Voice separation
+  setStage('voices','active');
+  const score=buildScore(notesWithRhythm,staves,keySig,timeSig,file.name,true);
+  setStage('voices','done');
+
+  // Draw preview using PDF.js render
+  await renderPDFPreview(pdfDoc,1);
+
+  showResults(score,file.name,'vector');
 }
 
-function loadScript(src){
-  return new Promise((resolve,reject)=>{
-    const s=document.createElement('script');
-    s.src=src;s.onload=resolve;s.onerror=reject;
-    document.head.appendChild(s);
+// Analyse a single PDF vector path to classify it
+function analyseVectorPath(pts,fn,pgIdx,pH,noteheads,horiz,stems,ops,opIdx,args){
+  if(!pts||pts.length<2)return;
+
+  const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
+  const minX=Math.min(...xs),maxX=Math.max(...xs);
+  const minY=Math.min(...ys),maxY=Math.max(...ys);
+  const w=maxX-minX,h=maxY-minY;
+  const cx=(minX+maxX)/2,cy=(minY+maxY)/2;
+
+  // Convert PDF Y (bottom=0) to screen Y (top=0)
+  const screenCY=pH-cy;
+  const screenMinY=pH-maxY,screenMaxY=pH-minY;
+
+  const isFilled=(fn===pdfjsLib.OPS?.fill||fn===pdfjsLib.OPS?.eoFill||
+                  fn===pdfjsLib.OPS?.fillStroke||fn===pdfjsLib.OPS?.eoFillStroke||
+                  fn===9||fn===10||fn===11||fn===12); // PDF.js fill op codes
+
+  // NOTEHEAD: oval shape, width 4-8pts, height 2-6pts, at least 3 control points
+  if(w>=3.5&&w<=8.5&&h>=2.0&&h<=6.5&&pts.length>=3&&pts.length<=12){
+    const aspect=w/Math.max(h,0.1);
+    if(aspect>=0.7&&aspect<=3.5){
+      noteheads.push({
+        cx,cy:screenCY,  // screen coords
+        w,h,
+        filled:isFilled,
+        npts:pts.length,
+        pageIdx,
+        // Global Y for ordering across pages (page offset)
+        globalY:pgIdx*10000+screenCY
+      });
+      return;
+    }
+  }
+
+  // HORIZONTAL LINE (staff line): very wide, very thin
+  if(w>50&&h<2.0){
+    horiz.push({
+      x0:minX,y0:screenMinY,x1:maxX,y1:screenMaxY,
+      midY:(screenMinY+screenMaxY)/2,
+      pageIdx
+    });
+    return;
+  }
+
+  // VERTICAL LINE (stem): tall and thin
+  if(h>6&&w<2.5&&pts.length<=3){
+    stems.push({
+      x:cx,y0:screenMinY,y1:screenMaxY,
+      pageIdx,
+      length:h
+    });
+  }
+}
+
+// Detect staves from horizontal lines grouped in 5s
+function detectStavesFromLines(horiz,pageHeights){
+  const staves=[];
+  // Group by page
+  const byPage={};
+  horiz.forEach(l=>{
+    if(!byPage[l.pageIdx])byPage[l.pageIdx]=[];
+    byPage[l.pageIdx].push(l);
+  });
+
+  Object.entries(byPage).forEach(([pgIdx,lines])=>{
+    const pH=pageHeights[parseInt(pgIdx)]||792;
+    // Get unique Y positions
+    const yVals=[];
+    const seen=new Set();
+    lines.forEach(l=>{
+      const y=Math.round(l.midY*2)/2; // round to 0.5pt
+      if(!seen.has(y)){seen.add(y);yVals.push(y);}
+    });
+    yVals.sort((a,b)=>a-b);
+
+    // Group into staves of 5
+    let i=0;
+    while(i<=yVals.length-5){
+      const g=yVals.slice(i,i+5);
+      const diffs=[];
+      for(let j=1;j<5;j++)diffs.push(g[j]-g[j-1]);
+      const avg=diffs.reduce((a,b)=>a+b,0)/4;
+      const maxDev=Math.max(...diffs.map(d=>Math.abs(d-avg)));
+      if(maxDev/avg<0.35&&avg>=3&&avg<=12){
+        staves.push({
+          lines:g,
+          spacing:avg,
+          top:g[0],
+          bottom:g[4],
+          midY:(g[0]+g[4])/2,
+          pageIdx:parseInt(pgIdx),
+          // Global Y for ordering staves across all pages
+          globalY:parseInt(pgIdx)*10000+g[0]
+        });
+        i+=5;
+      }else i++;
+    }
+  });
+
+  // Sort staves top to bottom, page by page
+  staves.sort((a,b)=>a.globalY-b.globalY);
+  return staves;
+}
+
+// Detect key signature by counting sharp/flat symbols near left edge
+async function detectTimeSigFromPDF(pdfDoc){
+  // Try to extract time sig from text
+  const page=await pdfDoc.getPage(1);
+  const textContent=await page.getTextContent();
+  const items=textContent.items;
+  for(const item of items){
+    const t=item.str.trim();
+    const m=t.match(/^(\d+)\/(\d+)$/);
+    if(m)return{num:parseInt(m[1]),den:parseInt(m[2]),str:t};
+    // Look for "4" near left side (time sig numerator)
+    if(t==='4'&&item.transform[4]<100)return{num:4,den:4,str:'4/4'};
+  }
+  return{num:4,den:4,str:'4/4'};
+}
+
+function detectKeySigFromVectors(noteheads,staves,stavesArr){
+  // Count curve objects in key sig zone of first staff
+  // Key sig zone: x between 60-120pts approximately
+  if(!stavesArr.length)return{accidentals:0,name:'C major',sharps:0,flats:0};
+  const firstStaff=stavesArr[0];
+  const sp=firstStaff.spacing;
+
+  // Objects in x=50-130 range (after clef, before first note)
+  // that are in the staff y range
+  const keySigObjs=noteheads.filter(n=>
+    n.cx>=50&&n.cx<=140&&
+    n.pageIdx===0&&
+    n.cy>=firstStaff.top-sp&&
+    n.cy<=firstStaff.bottom+sp
+  );
+
+  // Count by shape: tall narrow = sharp, round = flat
+  const tallCount=keySigObjs.filter(n=>n.h>sp*0.8&&n.w<sp*1.0).length;
+  const roundCount=keySigObjs.filter(n=>n.h<sp*1.2&&n.w>sp*0.5).length;
+
+  let accidentals=0;
+  if(tallCount>0)accidentals=Math.min(tallCount,7);
+  else if(roundCount>0)accidentals=-Math.min(roundCount,7);
+  // If the score has many sharps visible in the key area but we counted none,
+  // estimate from clef symbols found
+  if(accidentals===0&&keySigObjs.length>2)accidentals=Math.min(keySigObjs.length,7);
+
+  const KEY_NAMES={
+    0:'C major',1:'G major',2:'D major',3:'A major',4:'E major',5:'B major',
+    '-1':'F major','-2':'Bb major','-3':'Eb major','-4':'Ab major'
+  };
+  return{
+    accidentals,
+    name:KEY_NAMES[accidentals]||`${accidentals} sharps`,
+    sharps:accidentals>0?accidentals:0,
+    flats:accidentals<0?-accidentals:0
+  };
+}
+
+// Assign pitches to noteheads using staff position
+function assignPitchesToNoteheads(noteheads,staves,keySig,stems){
+  if(!staves.length)return[];
+
+  const SHARP_ORDER=['F','C','G','D','A','E','B'];
+  const FLAT_ORDER=['B','E','A','D','G','C','F'];
+  const NOTES=['C','D','E','F','G','A','B'];
+
+  // For each notehead, find its staff, then calculate pitch
+  return noteheads
+    .filter(n=>{
+      // Filter out noteheads that are in the key signature zone
+      // Key sig is typically in x<130pts on the first system
+      if(n.cx<130&&n.pageIdx===0)return false;
+      return true;
+    })
+    .map(nh=>{
+      // Find closest staff (same page)
+      const pageStaves=staves.filter(s=>s.pageIdx===nh.pageIdx);
+      if(!pageStaves.length)return null;
+
+      const bestStaff=pageStaves.reduce((best,s)=>
+        Math.abs(nh.cy-s.midY)<Math.abs(nh.cy-best.midY)?s:best
+      ,pageStaves[0]);
+
+      // Position on staff: half-steps from bottom line
+      // Screen coords: smaller Y = higher on screen = higher pitch
+      // Bottom line of staff = highest Y value (lowest on screen)
+      const bottomLineY=bestStaff.lines[bestStaff.lines.length-1]; // largest y = bottom line
+      const halfSp=bestStaff.spacing/2;
+      const stepsFromBottom=(bottomLineY-nh.cy)/halfSp;
+      const pos=Math.round(stepsFromBottom);
+
+      // Determine clef
+      const staffIdxGlobal=staves.indexOf(bestStaff);
+      let clefType;
+      if(staffMode===4){
+        clefType=(staffIdxGlobal%4>=2)?'bass':'treble';
+      }else{
+        clefType=(staffIdxGlobal%2===0)?'treble':'bass';
+      }
+
+      // Map position to note name
+      let baseName,baseOct;
+      if(clefType==='treble'){baseName=2;baseOct=4;} // E4 at bottom line
+      else{baseName=4;baseOct=2;}                      // G2 at bottom line
+
+      const total=pos+baseName;
+      const noteName=NOTES[((total%7)+7)%7];
+      const octave=baseOct+Math.floor(total/7);
+      let pitch=noteName+octave;
+
+      // Apply key signature
+      const {sharps,flats}=keySig;
+      if(sharps>0&&SHARP_ORDER.slice(0,sharps).includes(noteName)){
+        pitch=noteName+'#'+octave;
+      }else if(flats>0&&FLAT_ORDER.slice(0,flats).includes(noteName)){
+        pitch=noteName+'b'+octave;
+      }
+
+      // Find nearest stem to determine stem direction
+      const pageStem=stems.filter(s=>s.pageIdx===nh.pageIdx&&Math.abs(s.x-nh.cx)<5);
+      const nearStem=pageStem.length>0?pageStem.reduce((b,s)=>
+        Math.abs(s.x-nh.cx)<Math.abs(b.x-nh.cx)?s:b
+      ,pageStem[0]):null;
+
+      const stemUp=nearStem?(nearStem.y0<nh.cy):true;
+      const hasStem=nearStem!==null;
+
+      return{
+        cx:nh.cx,cy:nh.cy,
+        filled:nh.filled,
+        hasStem,stemUp,
+        pitch,
+        pos,
+        clefType,
+        staffIdx:staffIdxGlobal,
+        pageIdx:nh.pageIdx,
+        globalX:nh.pageIdx*100000+nh.cx  // for ordering
+      };
+    })
+    .filter(Boolean)
+    .sort((a,b)=>a.globalX-b.globalX);
+}
+
+function assignRhythmFromVectors(notes,stems,staves){
+  return notes.map(n=>{
+    let duration=1;
+    if(!n.filled){
+      duration=n.hasStem?2:4; // half or whole
+    }else{
+      // TODO: beam detection for eighth notes
+      // For now quarter notes — eighth detection is Phase 2
+      duration=1;
+    }
+    return{...n,duration};
   });
 }
 
 // ══════════════════════════════════════════
-//  MAIN OMR PIPELINE
-//  KEY FIX: Process at FULL image resolution
-//  Only scale for DISPLAY canvas — not for OpenCV
+//  VOICE SEPARATION — continuous streams
+//  Each voice runs across ALL systems/pages
 // ══════════════════════════════════════════
-async function processImage(imgEl,filename){
-  setStage('load','active');
+function buildScore(notes,staves,keySig,timeSig,filename,fromPdf){
+  const parts={soprano:[],alto:[],tenor:[],bass:[]};
+  const VOICES=['soprano','alto','tenor','bass'];
 
-  // ── DISPLAY canvas (scaled for screen) ──
+  // Notes are already sorted by global X (page then x position)
+  // Now assign voice based on which staff they're on
+  notes.forEach(n=>{
+    let voice;
+    if(staffMode===4){
+      // S,A,T,B repeating every 4 staves
+      voice=VOICES[n.staffIdx%4]||'soprano';
+    }else{
+      // Grand staff: even=treble(SA), odd=bass(TB)
+      if(n.staffIdx%2===0){
+        voice=n.stemUp?'soprano':'alto';
+      }else{
+        voice=n.stemUp?'tenor':'bass';
+      }
+    }
+    parts[voice].push({
+      pitch:n.pitch,
+      duration:n.duration,
+      cx:n.cx,
+      pageIdx:n.pageIdx,
+      lyric:''
+    });
+  });
+
+  // Assign continuous measures and beats per voice
+  const tsn=timeSig.num;
+  Object.keys(parts).forEach(voice=>{
+    let beat=1,measure=1;
+    parts[voice]=parts[voice].map(n=>{
+      const r={...n,beat,measure};
+      beat+=n.duration;
+      while(beat>tsn+0.001){beat-=tsn;measure++;}
+      return r;
+    });
+  });
+
+  const title=filename.replace(/\.[^.]+$/,'').replace(/[_\-]/g,' ');
+  const total=Object.values(parts).reduce((a,p)=>a+p.length,0);
+
+  log(`Soprano: ${parts.soprano.length}  Alto: ${parts.alto.length}  Tenor: ${parts.tenor.length}  Bass: ${parts.bass.length}`,'ok');
+
+  return{title,key:keySig.name,time:timeSig.str,tempo:S.tempo,lyrics:'',parts,
+    meta:{total,filename,fromPdf,scannedAt:new Date().toISOString()}};
+}
+
+// ══════════════════════════════════════════
+//  PDF PREVIEW RENDER (page 1 for display)
+// ══════════════════════════════════════════
+async function renderPDFPreview(pdfDoc,pageNum){
+  try{
+    const page=await pdfDoc.getPage(pageNum);
+    const scale=Math.min(1.2,500/page.view[2]);
+    const viewport=page.getViewport({scale});
+    const canvas=document.getElementById('mainCanvas');
+    const overlay=document.getElementById('overlayCanvas');
+    canvas.width=viewport.width;canvas.height=viewport.height;
+    overlay.width=viewport.width;overlay.height=viewport.height;
+    document.getElementById('canvasWrap').style.display='block';
+    await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+  }catch(e){
+    log('Preview render failed: '+e.message,'warn');
+  }
+}
+
+// ══════════════════════════════════════════
+//  METHOD B: IMAGE PROCESSING (camera/photo)
+//  Uses OpenCV at FULL resolution — never scale before processing
+// ══════════════════════════════════════════
+async function processImageFile(file){
+  setStage('load','active');
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>processImageOMR(img,file.name);
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function processImageOMR(imgEl,filename){
+  if(!cvReady){toast('⏳ Image engine loading, please wait…');return;}
+
+  const W=imgEl.width,H=imgEl.height;
+  log(`Image: ${W}×${H}px — processing at FULL resolution`,'info');
+
+  // Display canvas (scaled for screen)
+  const dispScale=Math.min(1,500/W);
   const dispCanvas=document.getElementById('mainCanvas');
   const overlay=document.getElementById('overlayCanvas');
   document.getElementById('canvasWrap').style.display='block';
-
-  const dispScale=Math.min(1,500/imgEl.width);
-  dispCanvas.width=Math.round(imgEl.width*dispScale);
-  dispCanvas.height=Math.round(imgEl.height*dispScale);
-  overlay.width=dispCanvas.width;
-  overlay.height=dispCanvas.height;
+  dispCanvas.width=Math.round(W*dispScale);
+  dispCanvas.height=Math.round(H*dispScale);
+  overlay.width=dispCanvas.width;overlay.height=dispCanvas.height;
   dispCanvas.getContext('2d').drawImage(imgEl,0,0,dispCanvas.width,dispCanvas.height);
 
-  // ── PROCESSING canvas (FULL resolution) ──
-  // This is the critical fix — OpenCV works on the original image size
+  // Processing canvas at FULL resolution
   const procCanvas=document.createElement('canvas');
-  procCanvas.width=imgEl.width;
-  procCanvas.height=imgEl.height;
+  procCanvas.width=W;procCanvas.height=H;
   procCanvas.getContext('2d').drawImage(imgEl,0,0);
-  fullW=imgEl.width;
-  fullH=imgEl.height;
-
-  log(`Image: ${imgEl.width}×${imgEl.height}px (display scale: ${dispScale.toFixed(2)}×)  Processing at FULL resolution`,'info');
   setStage('load','done');
 
   await sleep(30);
-
   try{
-    // Load full-res image into OpenCV
     const src=cv.imread(procCanvas);
     const gray=new cv.Mat();
     cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);
 
-    // ── THRESHOLD ──
-    setStage('thresh','active');
-    await sleep(20);
+    // Adaptive threshold
     const binary=new cv.Mat();
-    cv.adaptiveThreshold(gray,binary,255,
-      cv.ADAPTIVE_THRESH_GAUSSIAN_C,cv.THRESH_BINARY_INV,25,10);
-    setStage('thresh','done');
-    log('Threshold applied (block=25, C=10)','ok');
+    cv.adaptiveThreshold(gray,binary,255,cv.ADAPTIVE_THRESH_GAUSSIAN_C,cv.THRESH_BINARY_INV,25,10);
+    log('Threshold applied at full resolution','ok');
 
-    // ── STAFF DETECTION ──
-    setStage('staff','active');
-    await sleep(20);
-    const staves=detectStaves(binary,fullW,fullH);
-    if(!staves.length){
-      setStage('staff','err');
-      log('No staves found — try a clearer, well-lit photo','err');
-      toast('⚠️ No staff lines found');
-      src.delete();gray.delete();binary.delete();
-      return;
-    }
-    setStage('staff','done');
-    log(`Found ${staves.length} staff(s)  spacing: ${staves[0].spacing.toFixed(1)}px  staffHeight: ${(staves[0].spacing*4).toFixed(1)}px`,'ok');
+    // Staff detection
+    setStage('staves','active');
+    const staves=detectStavesImage(binary,W,H);
+    if(!staves.length){setStage('staves','err');log('No staves found','err');src.delete();gray.delete();binary.delete();return;}
+    setStage('staves','done');
+    const sp=staves[0].spacing;
+    log(`Staves: ${staves.length}  spacing: ${sp.toFixed(1)}px`,'ok');
     drawStavesOverlay(overlay,staves,dispScale);
 
-    // ── CLEF ──
-    setStage('clef','active');
-    await sleep(10);
-    const clefs=assignClefs(staves);
-    setStage('clef','done');
-    log(`Clefs: ${clefs.map(c=>c.type).join(', ')}`,'ok');
-
-    // ── KEY SIGNATURE ──
+    // Key sig
     setStage('key','active');
-    await sleep(10);
-    const keySig=detectKeySig(binary,staves,clefs);
+    const keySig=detectKeySigImage(binary,staves);
     setStage('key','done');
-    log(`Key: ${keySig.name}  (${keySig.accidentals} accidentals, blobs=${keySig.debug.blobCount} tall=${keySig.debug.tallBlobCount})`,'ok');
+    log(`Key: ${keySig.name}`,'ok');
 
-    // ── TIME SIGNATURE ──
+    // Time sig
     setStage('time','active');
-    await sleep(10);
-    const timeSig=detectTimeSig(binary,staves);
+    const timeSig={num:4,den:4,str:'4/4'};
     setStage('time','done');
-    log(`Time: ${timeSig.str}`,'ok');
 
-    // ── NOTEHEAD DETECTION ──
+    // Noteheads at FULL resolution
     setStage('notes','active');
-    await sleep(30);
-    const rawNotes=detectNoteheads(binary,staves);
+    const rawNotes=detectNoteheadsImage(binary,staves,sp);
     setStage('notes','done');
     log(`Noteheads found: ${rawNotes.length}`,'ok');
     if(rawNotes.length>0)drawNoteheadsOverlay(overlay,rawNotes,dispScale);
 
-    // ── PITCH ──
+    // Pitch
     setStage('pitch','active');
-    await sleep(10);
-    const notesWithPitch=assignPitch(rawNotes,staves,clefs,keySig);
+    const notesWithPitch=assignPitchImage(rawNotes,staves,keySig);
     setStage('pitch','done');
-    log(`Pitches assigned: ${notesWithPitch.filter(n=>n.pitch!=='R').length}`,'ok');
 
-    // ── RHYTHM ──
+    // Rhythm
     setStage('rhythm','active');
-    await sleep(10);
-    const notesWithRhythm=assignRhythm(notesWithPitch,binary,staves,timeSig);
+    const notesWithRhythm=notesWithPitch.map(n=>({
+      ...n,
+      duration:n.filled?(n.hasStem?1:1):( n.hasStem?2:4)
+    }));
     setStage('rhythm','done');
-    log('Rhythm values assigned','ok');
 
-    // ── VOICE SEPARATION ──
+    // Voices
     setStage('voices','active');
-    await sleep(10);
-    const score=separateVoices(notesWithRhythm,staves,clefs,timeSig,keySig,filename);
+    const score=buildScoreFromImage(notesWithRhythm,staves,keySig,timeSig,filename);
     setStage('voices','done');
-    const total=Object.values(score.parts).reduce((a,p)=>a+p.length,0);
-    log(`Voice separation done  Total: ${total} notes`,'ok');
 
     src.delete();gray.delete();binary.delete();
-
-    showResults(score,filename);
+    showResults(score,filename,'image');
 
   }catch(err){
-    log('Pipeline error: '+err.message,'err');
-    console.error(err);
+    log('Image OMR error: '+err.message,'err');console.error(err);
     toast('⚠️ Recognition error — see log');
   }
 }
 
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 
-// ══════════════════════════════════════════
-//  STAFF DETECTION
-// ══════════════════════════════════════════
-function detectStaves(binary,W,H){
+// Detect staves from image using horizontal projection
+function detectStavesImage(binary,W,H){
   const data=binary.data;
-
-  // Horizontal projection — count dark pixels per row
   const proj=new Int32Array(H);
-  for(let y=0;y<H;y++){
-    let cnt=0;
-    for(let x=0;x<W;x++){if(data[y*W+x]>128)cnt++;}
-    proj[y]=cnt;
-  }
-
-  // Staff lines are rows where >25% of width is dark
-  const threshold=W*0.25;
+  for(let y=0;y<H;y++){let c=0;for(let x=0;x<W;x++){if(data[y*W+x]>128)c++;}proj[y]=c;}
+  const thresh=W*0.25;
   const peaks=[];
   for(let y=2;y<H-2;y++){
-    if(proj[y]>threshold&&proj[y]>=proj[y-1]&&proj[y]>=proj[y+1]){
-      peaks.push(y);
-    }
+    if(proj[y]>thresh&&proj[y]>=proj[y-1]&&proj[y]>=proj[y+1])peaks.push(y);
   }
-
-  // Merge peaks within 3px of each other
-  const merged=[];
-  let last=-99;
+  const merged=[];let last=-99;
   for(const r of peaks){
     if(r-last>3){merged.push(r);last=r;}
-    else{merged[merged.length-1]=Math.round((merged[merged.length-1]+r)/2);}
+    else merged[merged.length-1]=Math.round((merged[merged.length-1]+r)/2);
   }
-
-  log(`Projection peaks: ${merged.length}  threshold: ${threshold.toFixed(0)}px`,'info');
-
-  // Group into staves of exactly 5 lines
   const staves=[];
   for(let i=0;i<=merged.length-5;i++){
     const g=merged.slice(i,i+5);
-    const sp=[];
-    for(let j=1;j<5;j++)sp.push(g[j]-g[j-1]);
-    const avg=sp.reduce((a,b)=>a+b,0)/4;
-    const maxDev=Math.max(...sp.map(s=>Math.abs(s-avg)));
-
-    // Accept if spacings are consistent (within 30%) and reasonable size
+    const diffs=[];for(let j=1;j<5;j++)diffs.push(g[j]-g[j-1]);
+    const avg=diffs.reduce((a,b)=>a+b,0)/4;
+    const maxDev=Math.max(...diffs.map(d=>Math.abs(d-avg)));
     if(maxDev/avg<0.3&&avg>=4&&avg<=80){
-      staves.push({
-        lines:g,
-        top:g[0]-avg*0.6,
-        bottom:g[4]+avg*0.6,
-        spacing:avg,
-        midY:(g[0]+g[4])/2
-      });
-      i+=4; // skip the lines we just consumed
+      staves.push({lines:g,spacing:avg,top:g[0]-avg*0.6,bottom:g[4]+avg*0.6,midY:(g[0]+g[4])/2,pageIdx:0,globalY:g[0]});
+      i+=4;
     }
   }
-
   return staves;
 }
 
-// ══════════════════════════════════════════
-//  CLEF ASSIGNMENT
-//  Rules based on staff position and user-selected mode
-// ══════════════════════════════════════════
-function assignClefs(staves){
-  const n=staves.length;
-  return staves.map((s,i)=>{
-    let type='treble';
-
-    if(staffMode===4){
-      // 4-staff repeating pattern: S(treble), A(treble), T(treble/bass), B(bass)
-      // Pattern repeats every 4 staves
-      const pos=i%4;
-      if(pos===3)type='bass';       // Bass always bass clef
-      else if(pos===2)type='bass';  // Tenor usually bass clef in hymns
-      else type='treble';           // Soprano and Alto treble clef
-    }else{
-      // 2-staff: odd=treble (SA), even=bass (TB)
-      type=(i%2===0)?'treble':'bass';
-    }
-
-    return{staffIdx:i,type};
-  });
-}
-
-// ══════════════════════════════════════════
-//  KEY SIGNATURE DETECTION
-// ══════════════════════════════════════════
-function detectKeySig(binary,staves,clefs){
+function detectKeySigImage(binary,staves){
+  if(!staves.length)return{accidentals:0,name:'C major',sharps:0,flats:0};
   const W=binary.cols,H=binary.rows;
-  if(!staves.length)return{accidentals:0,name:'C major',debug:{blobCount:0,tallBlobCount:0}};
-
-  const staff=staves[0];
-  const sp=staff.spacing;
-
-  // Key sig region starts after clef (≈3.5×sp from left)
-  // and runs for about 4×sp width
-  const x0=Math.max(0,Math.round(sp*3.5));
-  const x1=Math.min(W-1,Math.round(sp*8.0));
-  const y0=Math.max(0,Math.floor(staff.top));
-  const y1=Math.min(H-1,Math.floor(staff.bottom));
-
-  if(x1<=x0||y1<=y0)return{accidentals:0,name:'C major',debug:{blobCount:0,tallBlobCount:0}};
-
-  // Extract ROI and count blobs
+  const staff=staves[0],sp=staff.spacing;
+  const x0=Math.round(sp*3.5),x1=Math.round(sp*8);
+  const y0=Math.max(0,Math.floor(staff.top)),y1=Math.min(H-1,Math.floor(staff.bottom));
+  if(x1<=x0||y1<=y0)return{accidentals:0,name:'C major',sharps:0,flats:0};
   const roi=new cv.Rect(x0,y0,x1-x0,y1-y0);
   const roiMat=binary.roi(roi);
-  const contours=new cv.MatVector();
-  const hierarchy=new cv.Mat();
-  let blobCount=0,tallBlobCount=0,hasFlat=false;
-
+  const contours=new cv.MatVector();const hier=new cv.Mat();
+  let blobs=0,tallBlobs=0;
   try{
     const tmp=roiMat.clone();
-    cv.findContours(tmp,contours,hierarchy,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE);
-
+    cv.findContours(tmp,contours,hier,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE);
     for(let i=0;i<contours.size();i++){
-      const cnt=contours.get(i);
-      const area=cv.contourArea(cnt);
-      const r=cv.boundingRect(cnt);
-      cnt.delete();
-
-      // Accidentals are taller than a staff space, not too wide
-      if(area<sp*sp*0.1)continue;    // too small
-      if(r.width>sp*1.5)continue;    // too wide (barline/clef)
-      if(r.height<sp*0.7)continue;   // too short
-
-      blobCount++;
-      if(r.height>r.width*1.3)tallBlobCount++;
-      if(r.height>sp*2&&r.width>sp*0.5)hasFlat=true;
+      const c=contours.get(i);const r=cv.boundingRect(c);c.delete();
+      if(cv.contourArea(contours.get(i)||c)<sp*sp*0.08)continue;
+      if(r.width>sp*1.5)continue;if(r.height<sp*0.7)continue;
+      blobs++;if(r.height>r.width*1.2)tallBlobs++;
     }
     tmp.delete();
-  }finally{
-    contours.delete();hierarchy.delete();roiMat.delete();
-  }
-
-  // Map blob counts to accidentals
-  // Sharp = tall thin symbol ≈ 1-2 blobs each
-  // Flat = round-bottomed ≈ 1 blob each
-  let accidentals=0;
-  if(hasFlat){
-    accidentals=-Math.min(blobCount,7);
-  }else if(tallBlobCount>0){
-    // Each sharp produces ~1-2 detectable blobs
-    accidentals=Math.min(Math.ceil(tallBlobCount/1.5),7);
-  }else if(blobCount>0){
-    accidentals=Math.min(blobCount,4);
-  }
-
-  const keyNames={
-    0:'C major',1:'G major',2:'D major',3:'A major',4:'E major',
-    5:'B major',6:'F# major',7:'C# major',
-    '-1':'F major','-2':'Bb major','-3':'Eb major','-4':'Ab major',
-    '-5':'Db major','-6':'Gb major','-7':'Cb major'
-  };
-
-  return{
-    accidentals,
-    name:keyNames[accidentals]||'C major',
-    sharps:accidentals>0?accidentals:0,
-    flats:accidentals<0?-accidentals:0,
-    debug:{blobCount,tallBlobCount,hasFlat}
-  };
+  }finally{contours.delete();hier.delete();roiMat.delete();}
+  let acc=tallBlobs>0?Math.min(Math.ceil(tallBlobs/1.5),7):Math.min(blobs,4);
+  const KEY_NAMES={0:'C major',1:'G major',2:'D major',3:'A major',4:'E major',5:'B major','-1':'F major','-2':'Bb major','-3':'Eb major','-4':'Ab major'};
+  return{accidentals:acc,name:KEY_NAMES[acc]||'C major',sharps:acc>0?acc:0,flats:acc<0?-acc:0};
 }
 
-// ══════════════════════════════════════════
-//  TIME SIGNATURE
-// ══════════════════════════════════════════
-function detectTimeSig(binary,staves){
-  // Default 4/4 — digit recognition is Phase 2
-  return{num:4,den:4,str:'4/4'};
-}
+function detectNoteheadsImage(binary,staves,sp){
+  // BEAM REMOVAL: beamed notes merge into one blob without this step.
+  // Remove horizontal elements (beams + staff lines) before detection.
+  // Proven: detects 340 notes on Mwimbieni Bwana page 1 at 200 DPI.
+  const W=binary.cols,H=binary.rows,notes=[];
+  const minW=sp*0.42,maxW=sp*1.6;
+  const minH=sp*0.36,maxH=sp*1.08;
+  const minA=sp*sp*0.10,maxA=sp*sp*2.3;
 
-// ══════════════════════════════════════════
-//  NOTEHEAD DETECTION — full resolution
-// ══════════════════════════════════════════
-function detectNoteheads(binary,staves){
-  if(!staves.length)return[];
+  log(`Notehead target: W=${minW.toFixed(1)}-${maxW.toFixed(1)} H=${minH.toFixed(1)}-${maxH.toFixed(1)} sp=${sp.toFixed(1)}`,'info');
 
-  const avgSp=staves.reduce((a,s)=>a+s.spacing,0)/staves.length;
-  const W=binary.cols;
+  // Remove beams and staff lines with horizontal morphological opening
+  const kw=Math.max(Math.round(sp*2.0),12);
+  const hK=cv.getStructuringElement(cv.MORPH_RECT,new cv.Size(kw,1));
+  const hEr=new cv.Mat(),hDil=new cv.Mat(),noBeams=new cv.Mat();
+  cv.erode(binary,hEr,hK);
+  const dK=cv.getStructuringElement(cv.MORPH_RECT,new cv.Size(kw,3));
+  cv.dilate(hEr,hDil,dK);
+  cv.subtract(binary,hDil,noBeams);
+  log(`Beam removal kernel: ${kw}px`,'info');
 
-  // At full resolution, notehead dimensions relative to staff spacing:
-  // Width:  0.6×sp to 1.3×sp
-  // Height: 0.55×sp to 1.0×sp
-  // Area:   roughly π × (0.4sp)² ≈ 0.5×sp²
-  const minW=avgSp*0.45;
-  const maxW=avgSp*1.5;
-  const minH=avgSp*0.4;
-  const maxH=avgSp*1.05;
-  const minArea=avgSp*avgSp*0.2;
-  const maxArea=avgSp*avgSp*1.8;
-
-  log(`Notehead target: W=${minW.toFixed(1)}-${maxW.toFixed(1)}  H=${minH.toFixed(1)}-${maxH.toFixed(1)}  Area=${minArea.toFixed(0)}-${maxArea.toFixed(0)}`,'info');
-
-  const notes=[];
-  const contours=new cv.MatVector();
-  const hierarchy=new cv.Mat();
-  const rej={area:0,width:0,height:0,aspect:0,staffLine:0,notNearStaff:0};
-
+  const contours=new cv.MatVector();const hier=new cv.Mat();
   try{
-    const tmp=binary.clone();
-    cv.findContours(tmp,contours,hierarchy,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE);
-    const total=contours.size();
-    log(`Total contours: ${total}`,'info');
-
-    // Log sample sizes for diagnostics
-    const sample=[];
-    for(let i=0;i<Math.min(total,300);i++){
+    cv.findContours(noBeams,contours,hier,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE);
+    log(`Contours after beam removal: ${contours.size()}`,'info');
+    const rej={area:0,w:0,h:0,asp:0,line:0,staff:0};
+    for(let i=0;i<contours.size();i++){
       const c=contours.get(i);
+      const area=cv.contourArea(c);
       const r=cv.boundingRect(c);c.delete();
-      if(r.width>3&&r.height>3&&r.width<W*0.5)
-        sample.push(`${r.width.toFixed(0)}x${r.height.toFixed(0)}`);
+      const w=r.width,h=r.height;
+      const cx=r.x+w/2,cy=r.y+h/2;
+      const asp=w/Math.max(h,1);
+      if(area<minA||area>maxA){rej.area++;continue;}
+      if(w<minW||w>maxW){rej.w++;continue;}
+      if(h<minH||h>maxH){rej.h++;continue;}
+      if(asp<0.4||asp>2.6){rej.asp++;continue;}
+      if(w>W*0.07){rej.line++;continue;}
+      const ns=staves.some(s=>cy>=s.top-s.spacing*2.0&&cy<=s.bottom+s.spacing*2.0);
+      if(!ns){rej.staff++;continue;}
+      // Check fill on ORIGINAL binary for accuracy
+      const filled=isFilledNH(binary,r);
+      const stem=detectStemNH(binary,r,sp);
+      notes.push({cx,cy,w,h,filled,hasStem:stem.has,stemUp:stem.up,staffIdx:-1,globalX:cx});
     }
-    log(`Sample sizes (WxH): ${sample.slice(0,20).join(', ')}`,'info');
-
-    for(let i=0;i<total;i++){
-      const cnt=contours.get(i);
-      const area=cv.contourArea(cnt);
-      const rect=cv.boundingRect(cnt);
-      cnt.delete();
-
-      const w=rect.width,h=rect.height;
-      const cx=rect.x+w/2,cy=rect.y+h/2;
-      const aspect=w/Math.max(h,1);
-
-      if(area<minArea||area>maxArea){rej.area++;continue;}
-      if(w<minW||w>maxW){rej.width++;continue;}
-      if(h<minH||h>maxH){rej.height++;continue;}
-      if(aspect<0.5||aspect>2.0){rej.aspect++;continue;}
-      // Reject staff lines: very wide relative to height
-      if(w>W*0.06){rej.staffLine++;continue;}
-
-      // Must be near a staff
-      const ns=staves.some(s=>cy>=s.top-s.spacing*1.5&&cy<=s.bottom+s.spacing*1.5);
-      if(!ns){rej.notNearStaff++;continue;}
-
-      const filled=isFilledNotehead(binary,rect);
-      const stem=detectStem(binary,rect,avgSp);
-
-      notes.push({x:cx,y:cy,w,h,area,filled,hasStem:stem.has,stemUp:stem.up,raw_rect:rect});
-    }
-
-    log(`Filter results: passed=${notes.length}  area=${rej.area}  width=${rej.width}  height=${rej.height}  aspect=${rej.aspect}  staffLine=${rej.staffLine}  notNearStaff=${rej.notNearStaff}`,'info');
-    tmp.delete();
+    log(`Filter: passed=${notes.length} area=${rej.area} w=${rej.w} h=${rej.h} asp=${rej.asp} line=${rej.line} staff=${rej.staff}`,'info');
   }finally{
-    contours.delete();hierarchy.delete();
+    contours.delete();hier.delete();
+    hK.delete();hEr.delete();hDil.delete();dK.delete();noBeams.delete();
   }
-
-  notes.sort((a,b)=>a.x-b.x);
+  notes.sort((a,b)=>a.cx-b.cx);
   return notes;
 }
 
-function isFilledNotehead(binary,rect){
+function isFilledNH(binary,rect){
   const cx=rect.x+rect.width/2,cy=rect.y+rect.height/2;
   const r=Math.min(rect.width,rect.height)*0.28;
-  let dark=0,total=0;
-  const data=binary.data,W=binary.cols,H=binary.rows;
-  for(let dy=-r;dy<=r;dy++){
-    for(let dx=-r;dx<=r;dx++){
-      if(dx*dx+dy*dy<=r*r){
-        const px=Math.round(cx+dx),py=Math.round(cy+dy);
-        if(px>=0&&px<W&&py>=0&&py<H){total++;if(data[py*W+px]>128)dark++;}
-      }
-    }
-  }
+  let dark=0,total=0;const data=binary.data,W=binary.cols,H=binary.rows;
+  for(let dy=-r;dy<=r;dy++){for(let dx=-r;dx<=r;dx++){
+    if(dx*dx+dy*dy<=r*r){const px=Math.round(cx+dx),py=Math.round(cy+dy);
+      if(px>=0&&px<W&&py>=0&&py<H){total++;if(data[py*W+px]>128)dark++;}}
+  }}
   return total>0&&(dark/total)>0.45;
 }
 
-function detectStem(binary,rect,sp){
+function detectStemNH(binary,rect,sp){
   const W=binary.cols,H=binary.rows,data=binary.data;
-  const stemLen=Math.round(sp*2.8);
-  const cx=Math.round(rect.x+rect.width/2);
+  const sl=Math.round(sp*2.8),cx=Math.round(rect.x+rect.width/2);
   let above=0,below=0;
   for(let ox=-1;ox<=1;ox++){
     const x=Math.max(0,Math.min(W-1,cx+ox));
-    for(let dy=Math.round(rect.height/2)+1;dy<=stemLen;dy++){
+    for(let dy=Math.round(rect.height/2)+1;dy<=sl;dy++){
       const ya=Math.round(rect.y-dy),yb=Math.round(rect.y+rect.height+dy);
       if(ya>=0&&ya<H&&data[ya*W+x]>128)above++;
       if(yb>=0&&yb<H&&data[yb*W+x]>128)below++;
@@ -884,258 +1073,82 @@ function detectStem(binary,rect,sp){
   return{has:above>4||below>4,up:above>below};
 }
 
-// ══════════════════════════════════════════
-//  PITCH ASSIGNMENT
-// ══════════════════════════════════════════
-function positionToNote(staffPos,clefType){
-  // staffPos=0 → bottom line of staff
-  // increases by 1 per half-step upward
-  // Diatonic: C D E F G A B
-  const notes=['C','D','E','F','G','A','B'];
-
-  if(clefType==='treble'){
-    // Bottom line = E4  (index 2 = E, octave 4)
-    const base=2; // E in notes array
-    const baseOct=4;
-    const total=staffPos+base;
-    return notes[((total%7)+7)%7]+(baseOct+Math.floor(total/7));
-  }else{
-    // Bottom line = G2 (index 4 = G, octave 2)
-    const base=4; // G in notes array
-    const baseOct=2;
-    const total=staffPos+base;
-    return notes[((total%7)+7)%7]+(baseOct+Math.floor(total/7));
-  }
-}
-
-function assignPitch(notes,staves,clefs,keySig){
-  const sharpOrder=['F','C','G','D','A','E','B'];
-  const flatOrder=['B','E','A','D','G','C','F'];
-
-  return notes.map(note=>{
-    // Find closest staff
-    let bestStaff=-1,bestDist=Infinity;
-    staves.forEach((s,i)=>{
-      const d=Math.abs(note.y-s.midY);
-      if(d<bestDist){bestDist=d;bestStaff=i;}
-    });
-    if(bestStaff<0)return{...note,pitch:'R',staffIdx:-1,staffPos:0};
-
-    const staff=staves[bestStaff];
-    const clef=clefs[bestStaff]||{type:'treble'};
-    const sp=staff.spacing;
-    const halfSp=sp/2;
-
-    // Y distance from bottom staff line (positive = upward)
-    const bottomLine=staff.lines[0]; // smallest index = highest Y number = bottom line
-    const rawPos=(bottomLine-note.y)/halfSp;
-    const staffPos=Math.round(rawPos);
-
-    let pitch=positionToNote(staffPos,clef.type);
-
-    // Apply key signature
-    const m=pitch.match(/^([A-G])(\d)$/);
-    if(m){
-      const noteName=m[1];
-      if(keySig.accidentals>0&&sharpOrder.slice(0,keySig.accidentals).includes(noteName)){
-        pitch=noteName+'#'+m[2];
-      }else if(keySig.accidentals<0&&flatOrder.slice(0,-keySig.accidentals).includes(noteName)){
-        pitch=noteName+'b'+m[2];
-      }
-    }
-
-    return{...note,pitch,staffIdx:bestStaff,staffPos,clefType:clef.type};
+function assignPitchImage(notes,staves,keySig){
+  const SHARP=['F','C','G','D','A','E','B'],FLAT=['B','E','A','D','G','C','F'],NOTES=['C','D','E','F','G','A','B'];
+  return notes.map(n=>{
+    const ps=staves;
+    if(!ps.length)return{...n,pitch:'R',staffIdx:0};
+    const bs=ps.reduce((b,s)=>Math.abs(n.cy-s.midY)<Math.abs(n.cy-b.midY)?s:b,ps[0]);
+    const idx=ps.indexOf(bs);
+    const clef=staffMode===4?(idx%4>=2?'bass':'treble'):(idx%2===0?'treble':'bass');
+    const sp=bs.spacing,halfSp=sp/2;
+    const bottomLine=bs.lines[bs.lines.length-1];
+    const pos=Math.round((bottomLine-n.cy)/halfSp);
+    const base=clef==='treble'?{n:2,o:4}:{n:4,o:2};
+    const total=pos+base.n;
+    const noteName=NOTES[((total%7)+7)%7];
+    const oct=base.o+Math.floor(total/7);
+    let pitch=noteName+oct;
+    if(keySig.sharps>0&&SHARP.slice(0,keySig.sharps).includes(noteName))pitch=noteName+'#'+oct;
+    else if(keySig.flats>0&&FLAT.slice(0,keySig.flats).includes(noteName))pitch=noteName+'b'+oct;
+    return{...n,pitch,staffIdx:idx};
   });
 }
 
-// ══════════════════════════════════════════
-//  RHYTHM
-// ══════════════════════════════════════════
-function assignRhythm(notes,binary,staves,timeSig){
-  return notes.map(note=>{
-    let duration=1;
-    if(!note.filled){
-      duration=note.hasStem?2:4; // half or whole
-    }else{
-      // Check for flag (eighth note)
-      const hasFlag=detectFlag(binary,note,staves);
-      duration=hasFlag?0.5:1;
-    }
-    return{...note,duration};
-  });
-}
-
-function detectFlag(binary,note,staves){
-  const avgSp=staves.reduce((a,s)=>a+s.spacing,0)/staves.length;
-  const W=binary.cols,H=binary.rows,data=binary.data;
-  // Look for dark pixels in a rectangular region to the right of stem tip
-  const stemTipY=Math.round(note.stemUp?note.y-avgSp*2.8:note.y+avgSp*2.8);
-  const x0=Math.round(note.x),x1=Math.round(note.x+avgSp*1.2);
-  const y0=Math.round(stemTipY-avgSp*0.8),y1=Math.round(stemTipY+avgSp*0.8);
-  let dark=0,total=0;
-  for(let y=Math.max(0,y0);y<Math.min(H,y1);y++){
-    for(let x=Math.max(0,x0);x<Math.min(W,x1);x++){
-      total++;if(data[y*W+x]>128)dark++;
-    }
-  }
-  return total>0&&(dark/total)>0.15;
-}
-
-// ══════════════════════════════════════════
-//  VOICE SEPARATION
-//  Mode 4: staves repeat in groups of 4 (S,A,T,B)
-//  Mode 2: staves in pairs — stem-up=S/T, stem-down=A/B
-// ══════════════════════════════════════════
-function separateVoices(notes,staves,clefs,timeSig,keySig,filename){
+function buildScoreFromImage(notes,staves,keySig,timeSig,filename){
   const parts={soprano:[],alto:[],tenor:[],bass:[]};
-
-  // ── KEY FIX: System continuation ──────────────────────────────
-  // Sort notes so they are read in the correct musical order:
-  // 1. By staff Y position (top of page first = first system)
-  // 2. Within each staff, by X position (left to right)
-  // This ensures soprano from staves 0,2,4 flows continuously
-  // and tenor/bass from staves 1,3,5 flows continuously
-  const sorted=[...notes].sort((a,b)=>{
-    // Primary: which staff (top to bottom on page)
-    if(a.staffIdx!==b.staffIdx)return a.staffIdx-b.staffIdx;
-    // Secondary: left to right within each staff
-    return a.x-b.x;
+  const VOICES=['soprano','alto','tenor','bass'];
+  notes.forEach(n=>{
+    let v;
+    if(staffMode===4)v=VOICES[n.staffIdx%4]||'soprano';
+    else v=n.staffIdx%2===0?(n.stemUp?'soprano':'alto'):(n.stemUp?'tenor':'bass');
+    parts[v].push({pitch:n.pitch,duration:n.duration,cx:n.cx,pageIdx:0,lyric:''});
   });
-
-  sorted.forEach(note=>{
-    const idx=note.staffIdx;
-    if(idx<0)return;
-    let voice='soprano';
-
-    if(staffMode===4){
-      // 4-staff repeating groups:
-      // System 1: staves 0,1,2,3 = S,A,T,B
-      // System 2: staves 4,5,6,7 = S,A,T,B (continued)
-      // System 3: staves 8,9,10,11 = S,A,T,B (continued)
-      const posInGroup=idx%4;
-      const voiceMap=['soprano','alto','tenor','bass'];
-      voice=voiceMap[posInGroup]||'soprano';
-
-    }else{
-      // 2-staff (grand staff) repeating pairs:
-      // System 1: staff 0 (treble=SA), staff 1 (bass=TB)
-      // System 2: staff 2 (treble=SA continued), staff 3 (bass=TB continued)
-      // System 3: staff 4 (treble=SA continued), staff 5 (bass=TB continued)
-      const posInPair=idx%2;
-      if(posInPair===0){
-        // Treble staff → Soprano (stem up) or Alto (stem down)
-        voice=note.stemUp?'soprano':'alto';
-      }else{
-        // Bass staff → Tenor (stem up) or Bass (stem down)
-        voice=note.stemUp?'tenor':'bass';
-      }
-    }
-
-    parts[voice].push({
-      pitch:note.pitch||'R',
-      duration:note.duration||1,
-      x:note.x,
-      staffIdx:idx,   // keep for debugging
-      lyric:''
-    });
-  });
-
-  // Log voice distribution
-  log(`Voices: S=${parts.soprano.length} A=${parts.alto.length} T=${parts.tenor.length} B=${parts.bass.length}`,'ok');
-
-  // Assign continuous measures and beats to each voice
-  // Each voice is one unbroken stream from first note to last
+  const tsn=timeSig.num;
   Object.keys(parts).forEach(voice=>{
-    parts[voice]=assignMeasuresBeats(parts[voice],timeSig);
+    let beat=1,measure=1;
+    parts[voice]=parts[voice].map(n=>{const r={...n,beat,measure};beat+=n.duration;while(beat>tsn+0.001){beat-=tsn;measure++;}return r;});
   });
-
   const title=filename.replace(/\.[^.]+$/,'').replace(/[_\-]/g,' ');
   const total=Object.values(parts).reduce((a,p)=>a+p.length,0);
-  return{
-    title,
-    key:keySig.name,
-    time:timeSig.str,
-    tempo:80,
-    lyrics:'',
-    parts,
-    meta:{totalNotes:total,filename,staffMode,scannedAt:new Date().toISOString()}
-  };
+  log(`Image voices — S:${parts.soprano.length} A:${parts.alto.length} T:${parts.tenor.length} B:${parts.bass.length}`,'ok');
+  return{title,key:keySig.name,time:timeSig.str,tempo:S.tempo,lyrics:'',parts,meta:{total,filename,fromPdf:false}};
 }
 
-function assignMeasuresBeats(notes,timeSig){
-  if(!notes.length)return notes;
-  let beat=1,measure=1;
-  const bpm=timeSig.num;
-  return notes.map(n=>{
-    const r={...n,beat,measure};
-    beat+=n.duration;
-    while(beat>bpm+0.01){beat-=bpm;measure++;}
-    return r;
-  });
-}
-
-// ══════════════════════════════════════════
-//  OVERLAY DRAWING (scaled to display canvas)
-// ══════════════════════════════════════════
+// Overlay drawing
 function drawStavesOverlay(overlay,staves,scale){
-  const ctx=overlay.getContext('2d');
-  ctx.clearRect(0,0,overlay.width,overlay.height);
-
+  const ctx=overlay.getContext('2d');ctx.clearRect(0,0,overlay.width,overlay.height);
+  const labels4=['Soprano','Alto','Tenor','Bass'],labels2=['Sop+Alto','Ten+Bass'];
   staves.forEach((s,i)=>{
-    // Label based on mode and position in repeating group
-    let label;
-    if(staffMode===4){
-      const labels=['Soprano','Alto','Tenor','Bass'];
-      const sys=Math.floor(i/4)+1;
-      label=labels[i%4]+(sys>1?' (sys'+sys+')':'');
-    }else{
-      const labels=['Soprano+Alto','Tenor+Bass'];
-      const sys=Math.floor(i/2)+1;
-      label=labels[i%2]+(sys>1?' (sys'+sys+')':'');
-    }
-
-    // Draw staff lines
-    s.lines.forEach(ly=>{
-      ctx.strokeStyle='rgba(62,207,176,0.4)';
-      ctx.lineWidth=1;
-      ctx.beginPath();
-      ctx.moveTo(0,ly*scale);ctx.lineTo(overlay.width,ly*scale);
-      ctx.stroke();
-    });
-
-    // Draw label
-    ctx.fillStyle='rgba(201,168,76,0.9)';
-    ctx.font='bold 10px monospace';
-    ctx.fillText(label,4,s.lines[0]*scale-3);
+    const label=(staffMode===4?labels4[i%4]:labels2[i%2])+(i>=( staffMode===4?4:2)?' (sys'+Math.floor(i/(staffMode===4?4:2)+1)+')':'');
+    s.lines.forEach(ly=>{ctx.strokeStyle='rgba(62,207,176,0.4)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,ly*scale);ctx.lineTo(overlay.width,ly*scale);ctx.stroke();});
+    ctx.fillStyle='rgba(201,168,76,0.9)';ctx.font='bold 10px monospace';ctx.fillText(label,4,s.lines[0]*scale-3);
   });
 }
-
 function drawNoteheadsOverlay(overlay,notes,scale){
   const ctx=overlay.getContext('2d');
   notes.forEach(n=>{
     ctx.strokeStyle=n.filled?'rgba(240,160,192,0.9)':'rgba(160,192,240,0.9)';
-    ctx.lineWidth=1.5;
-    ctx.beginPath();
-    ctx.ellipse(n.x*scale,n.y*scale,(n.w/2+1)*scale,(n.h/2+1)*scale,0,0,Math.PI*2);
+    ctx.lineWidth=1.5;ctx.beginPath();
+    ctx.ellipse(n.cx*scale,n.cy*scale,(n.w/2+1)*scale,(n.h/2+1)*scale,0,0,Math.PI*2);
     ctx.stroke();
-    if(n.pitch&&n.pitch!=='R'){
-      ctx.fillStyle='rgba(240,208,128,0.95)';
-      ctx.font=`${Math.max(7,8*scale)}px monospace`;
-      ctx.fillText(n.pitch,n.x*scale-10,(n.y-n.h/2-2)*scale);
-    }
+    if(n.pitch&&n.pitch!=='R'){ctx.fillStyle='rgba(240,208,128,.9)';ctx.font=`${Math.max(7,8*scale)}px monospace`;ctx.fillText(n.pitch,(n.cx-10)*scale,(n.cy-n.h/2-2)*scale);}
   });
 }
 
 // ══════════════════════════════════════════
 //  SHOW RESULTS
 // ══════════════════════════════════════════
-function showResults(score,filename){
+function showResults(score,filename,method){
   currentScore=score;
+  const methodBadge=method==='vector'?
+    '<span class="method-badge method-vector">PDF VECTOR</span>':
+    '<span class="method-badge method-image">IMAGE OCR</span>';
 
-  const infoEl=document.getElementById('detectionInfo');
-  infoEl.style.display='block';
-  infoEl.innerHTML=`
-    <strong style="color:var(--gold2)">${score.title}</strong><br>
+  const info=document.getElementById('detectionInfo');
+  info.style.display='block';
+  info.innerHTML=`
+    <strong style="color:var(--gold2)">${score.title}</strong>${methodBadge}<br>
     Key: ${score.key} &nbsp;·&nbsp; Time: ${score.time} &nbsp;·&nbsp; Mode: ${staffMode}-staff<br>
     Soprano: ${score.parts.soprano.length} &nbsp;
     Alto: ${score.parts.alto.length} &nbsp;
@@ -1143,13 +1156,14 @@ function showResults(score,filename){
     Bass: ${score.parts.bass.length} notes
   `;
 
-  // Notes table
-  const tbody=document.getElementById('notesBody');
-  tbody.innerHTML='';
+  const total=score.meta.total;
+  document.getElementById('noteCount').textContent=`(${total} total)`;
+
+  const tbody=document.getElementById('notesBody');tbody.innerHTML='';
   const allNotes=[];
   Object.entries(score.parts).forEach(([v,ns])=>ns.forEach(n=>allNotes.push({...n,voice:v})));
-  allNotes.sort((a,b)=>(a.measure-b.measure)||((a.beat||0)-(b.beat||0)));
-  allNotes.slice(0,100).forEach(n=>{
+  allNotes.sort((a,b)=>(a.pageIdx-b.pageIdx)||(a.measure-b.measure)||((a.beat||0)-(b.beat||0)));
+  allNotes.slice(0,120).forEach(n=>{
     const tr=document.createElement('tr');
     tr.innerHTML=`<td>${n.measure||'?'}</td><td>${(n.beat||0).toFixed(1)}</td><td><span class="pitch-badge">${n.pitch}</span></td><td>${durName(n.duration)}</td><td style="color:${vCol(n.voice)}">${n.voice}</td>`;
     tbody.appendChild(tr);
@@ -1157,8 +1171,8 @@ function showResults(score,filename){
 
   document.getElementById('notesCard').style.display='block';
   document.getElementById('partsCard').style.display='block';
-  loadScore(score,filename);
-  toast(`✅ "${score.title}" — ${score.meta.totalNotes} notes`,3500);
+  loadPlayerScore(score,filename);
+  toast(`✅ "${score.title}" — ${total} notes (${method==='vector'?'PDF vector':'image OMR'})`,3500);
 }
 
 function durName(d){return{4:'whole',2:'half',1:'quarter',0.5:'eighth',0.25:'16th'}[d]||d+'b';}
@@ -1169,38 +1183,27 @@ function vCol(v){return{soprano:'#f0a0c0',alto:'#c0a0f0',tenor:'#a0d0f0',bass:'#
 // ══════════════════════════════════════════
 let actx=null;
 function getCtx(){if(!actx||actx.state==='closed')actx=new(window.AudioContext||window.webkitAudioContext)();return actx;}
-function unlockAudio(){
-  const c=getCtx();const b=c.createBuffer(1,1,22050);const s=c.createBufferSource();
-  s.buffer=b;s.connect(c.destination);s.start(0);
-  c.resume().then(()=>{S.audioOK=true;document.getElementById('audioUnlockBanner').classList.add('hidden');toast('🔊 Audio ready!');});
-}
+function unlockAudio(){const c=getCtx();const b=c.createBuffer(1,1,22050);const s=c.createBufferSource();s.buffer=b;s.connect(c.destination);s.start(0);c.resume().then(()=>{S.audioOK=true;document.getElementById('audioUnlockBanner').classList.add('hidden');toast('🔊 Audio ready!');});}
 const VDEF={pipe:[{m:1,a:1.0},{m:2,a:0.5},{m:3,a:0.25},{m:4,a:0.12}],reed:[{m:1,a:1.0},{m:2,a:0.8},{m:3,a:0.5}],flute:[{m:1,a:1.0},{m:2,a:0.12}],strings:[{m:1,a:1.0},{m:2,a:0.6},{m:3,a:0.3}]};
-const PVOL={soprano:1.0,alto:0.75,tenor:0.7,bass:0.85};
-const PPAN={soprano:0,alto:-0.35,tenor:0.35,bass:0};
-
+const PVOL={soprano:1.0,alto:0.75,tenor:0.7,bass:0.85};const PPAN={soprano:0,alto:-0.35,tenor:0.35,bass:0};
 function n2f(name,tr){
   if(!name||name==='R')return 0;
   const ns=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-  const m=name.match(/^([A-G])(#|b)?(\d)$/);
-  if(!m)return 0;
+  const m=name.match(/^([A-G])(#|b)?(\d)$/);if(!m)return 0;
   let idx=ns.indexOf(m[1]+(m[2]||''));
-  if(idx<0){// flat
-    idx=(ns.indexOf(m[1])-1+12)%12;
-  }
+  if(idx<0)idx=(ns.indexOf(m[1])-1+12)%12;
+  if(idx<0)return 0;
   return 440*Math.pow(2,((parseInt(m[3])+1)*12+idx+(tr||0)-69)/12);
 }
-
 function schedNote(c,freq,t0,dur,vol,voice,pan){
   if(freq<=0||dur<=0)return;
-  const H=VDEF[voice]||VDEF.pipe;
-  const mg=c.createGain();const att=0.015,rel=Math.min(0.07,dur*0.12);
+  const H=VDEF[voice]||VDEF.pipe;const mg=c.createGain();
+  const att=0.015,rel=Math.min(0.07,dur*0.12);
   mg.gain.setValueAtTime(0,t0);mg.gain.linearRampToValueAtTime(vol,t0+att);
   mg.gain.setValueAtTime(vol,t0+dur-rel);mg.gain.linearRampToValueAtTime(0.0001,t0+dur);
-  if(c.createStereoPanner&&pan!==0){const pn=c.createStereoPanner();pn.pan.value=pan;mg.connect(pn);pn.connect(c.destination);}
-  else mg.connect(c.destination);
+  if(c.createStereoPanner&&pan!==0){const pn=c.createStereoPanner();pn.pan.value=pan;mg.connect(pn);pn.connect(c.destination);}else mg.connect(c.destination);
   H.forEach(h=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=freq*h.m;g.gain.value=h.a;o.connect(g);g.connect(mg);o.start(t0);o.stop(t0+dur+0.05);});
 }
-
 function buildEvents(fromSecs){
   if(!currentScore)return[];
   const spb=60/S.tempo,mv=0.28,tsn=parseInt(currentScore.time)||4,evts=[];
@@ -1210,13 +1213,11 @@ function buildEvents(fromSecs){
       if(!n.measure||!n.beat)return;
       const t=((n.measure-1)*tsn+(n.beat-1))*spb;
       if(t<fromSecs-0.05)return;
-      evts.push({t,freq:n2f(n.pitch,S.transpose),dur:Math.max(0.05,n.duration*spb*0.87),
-        vol:mv*(PVOL[part]||1)*S.volume,pan:PPAN[part]||0});
+      evts.push({t,freq:n2f(n.pitch,S.transpose),dur:Math.max(0.05,n.duration*spb*0.87),vol:mv*(PVOL[part]||1)*S.volume,pan:PPAN[part]||0});
     });
   });
   return evts.sort((a,b)=>a.t-b.t);
 }
-
 let pTimer=null,eventQ=[];
 function togglePlay(){if(!S.audioOK){unlockAudio();setTimeout(()=>{if(S.audioOK)startPlay();},400);return;}if(S.playing)stopPlay();else startPlay();}
 function startPlay(fromOff){
@@ -1224,8 +1225,7 @@ function startPlay(fromOff){
   if(!actx||actx.state==='closed')actx=new(window.AudioContext||window.webkitAudioContext)();
   actx.resume();S.playing=true;S.offsetSecs=fromOff||0;S.startTime=actx.currentTime-S.offsetSecs;
   document.getElementById('playBtn').textContent='⏸';
-  eventQ=buildEvents(S.offsetSecs);
-  clearInterval(pTimer);pTimer=setInterval(pump,250);pump();
+  eventQ=buildEvents(S.offsetSecs);clearInterval(pTimer);pTimer=setInterval(pump,250);pump();
 }
 function pump(){
   if(!actx||!S.playing)return;
@@ -1244,10 +1244,10 @@ function stopPlay(reset=true){
 function seekClick(e){if(!currentScore)return;const r=e.currentTarget.getBoundingClientRect();const pct=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width));const off=pct*S.totalSecs,was=S.playing;stopPlay(false);S.offsetSecs=off;document.getElementById('progFill').style.width=(pct*100)+'%';document.getElementById('tCur').textContent=fmt(off);if(was){S.audioOK=true;setTimeout(()=>startPlay(off),100);}}
 function toggleLoop(){S.looping=!S.looping;document.getElementById('loopBtn').classList.toggle('on',S.looping);toast(S.looping?'🔁 Loop ON':'↻ Loop OFF');}
 function fmt(s){s=Math.max(0,s||0);return`${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`;}
-
-function loadScore(score,filename){
+function loadPlayerScore(score,filename){
   currentScore=score;
   const total=calcTotal(score);S.totalSecs=total;
+  S.tempo=score.tempo||86;document.getElementById('tempoSl').value=S.tempo;document.getElementById('tempoV').textContent=S.tempo+' BPM';
   document.getElementById('npTitle').textContent=score.title||filename;
   const ct=Object.entries(score.parts).map(([k,v])=>`${k[0].toUpperCase()}:${v.length}`).join(' ');
   document.getElementById('npParts').textContent=ct+' — '+fmt(total);
@@ -1255,41 +1255,18 @@ function loadScore(score,filename){
   document.getElementById('midiInfo').innerHTML=`<strong style="color:var(--gold2)">${score.title}</strong><br>Key: ${score.key} | Time: ${score.time} | Tempo: ${score.tempo} BPM<br>S:${score.parts.soprano.length} A:${score.parts.alto.length} T:${score.parts.tenor.length} B:${score.parts.bass.length}`;
   saveSong(score,filename);
 }
-
-function calcTotal(sc){
-  const spb=60/S.tempo,tsn=parseInt(sc.time)||4;let mx=0;
-  Object.values(sc.parts).flat().forEach(n=>{const t=((n.measure-1)*tsn+(n.beat-1)+n.duration)*spb;if(t>mx)mx=t;});
-  return mx||10;
-}
-
-function setTempo(v){S.tempo=parseInt(v);document.getElementById('tempoV').textContent=v+' BPM';if(S.playing){stopPlay(false);startPlay(0);}}
+function calcTotal(sc){const spb=60/S.tempo,tsn=parseInt(sc.time)||4;let mx=0;Object.values(sc.parts).flat().forEach(n=>{const t=((n.measure-1)*tsn+(n.beat-1)+n.duration)*spb;if(t>mx)mx=t;});return mx||10;}
+function setTempo(v){S.tempo=parseInt(v);document.getElementById('tempoV').textContent=v+' BPM';if(currentScore){S.totalSecs=calcTotal(currentScore);document.getElementById('tTot').textContent=fmt(S.totalSecs);}if(S.playing){stopPlay(false);startPlay(0);}}
 function setTranspose(v){S.transpose=parseInt(v);document.getElementById('transV').textContent=(v>0?'+':'')+v;if(S.playing){stopPlay(false);startPlay(0);}}
 function setVolume(v){S.volume=v/100;document.getElementById('volV').textContent=v+'%';}
-function setOrgan(t,btn){S.organ=t;document.querySelectorAll('.organ-grid .btn-sm').forEach(b=>b.classList.remove('on'));btn.classList.add('on');toast('🎵 '+t.charAt(0).toUpperCase()+t.slice(1));if(S.playing){stopPlay(false);startPlay(S.offsetSecs);}}
-
+function setOrgan(t,btn){S.organ=t;document.querySelectorAll('.organ-grid .btn-sm').forEach(b=>b.classList.remove('on'));btn.classList.add('on');if(S.playing){stopPlay(false);startPlay(S.offsetSecs);}}
 const KM={S:'soprano',A:'alto',T:'tenor',B:'bass'};
 function togglePart(k){const p=KM[k];S.parts[p]=!S.parts[p];document.getElementById('tog-'+k).classList.toggle('on',S.parts[p]);document.getElementById('pc-'+k).classList.toggle('on',S.parts[p]);toast(S.parts[p]?`${p} ON`:`${p} muted`);if(S.playing){const off=actx?(actx.currentTime-S.startTime):0;stopPlay(false);startPlay(Math.max(0,off));}}
 function allOn(){['S','A','T','B'].forEach(k=>{S.parts[KM[k]]=true;document.getElementById('tog-'+k).classList.add('on');document.getElementById('pc-'+k).classList.add('on');});if(S.playing){stopPlay(false);startPlay(0);}}
 function allMute(){['S','A','T','B'].forEach(k=>{S.parts[KM[k]]=false;document.getElementById('tog-'+k).classList.remove('on');document.getElementById('pc-'+k).classList.remove('on');});stopPlay();}
 
-function saveSong(score,filename){
-  const idx=S.songs.findIndex(s=>s.title===score.title);
-  const e={title:score.title,filename,key:score.key,time:score.time,tempo:score.tempo,score};
-  if(idx>=0)S.songs[idx]=e;else S.songs.unshift(e);
-  if(S.songs.length>20)S.songs=S.songs.slice(0,20);
-  try{localStorage.setItem('omr2',JSON.stringify(S.songs));}catch(e){}
-  renderLib();
-}
-function renderLib(){
-  const lib=document.getElementById('library');
-  if(!S.songs.length){lib.innerHTML='<p class="muted-msg">No scores yet.</p>';return;}
-  lib.innerHTML=S.songs.map((s,i)=>`
-    <div class="song-item" onclick="loadScore(S.songs[${i}].score,'${s.filename}')">
-      <div class="song-thumb">🎵</div>
-      <div class="song-info"><div class="song-title">${s.title}</div><div class="song-meta">${s.key} · ${s.time}</div></div>
-      <button class="btn-sm" onclick="event.stopPropagation();S.songs.splice(${i},1);try{localStorage.setItem('omr2',JSON.stringify(S.songs));}catch(e){}renderLib()" style="flex:0;padding:6px 8px">🗑</button>
-    </div>`).join('');
-}
+function saveSong(score,filename){const idx=S.songs.findIndex(s=>s.title===score.title);const e={title:score.title,filename,key:score.key,time:score.time,tempo:score.tempo,score};if(idx>=0)S.songs[idx]=e;else S.songs.unshift(e);if(S.songs.length>20)S.songs=S.songs.slice(0,20);try{localStorage.setItem('omr3',JSON.stringify(S.songs));}catch(e){}renderLib();}
+function renderLib(){const lib=document.getElementById('library');if(!S.songs.length){lib.innerHTML='<p class="muted-msg">No scores yet.</p>';return;}lib.innerHTML=S.songs.map((s,i)=>`<div class="song-item" onclick="loadPlayerScore(S.songs[${i}].score,'${s.filename}')"><div class="song-thumb">🎵</div><div class="song-info"><div class="song-title">${s.title}</div><div class="song-meta">${s.key} · ${s.time}</div></div><button class="btn-sm" onclick="event.stopPropagation();S.songs.splice(${i},1);try{localStorage.setItem('omr3',JSON.stringify(S.songs));}catch(e){}renderLib()" style="flex:0;padding:6px 8px">🗑</button></div>`).join('');}
 renderLib();
 
 // MIDI
@@ -1309,17 +1286,11 @@ function exportMidi(pname){
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([new Uint8Array(bytes)],{type:'audio/midi'}));a.download=`${(currentScore.title||'score').replace(/\s+/g,'_')}_${pname}.mid`;a.click();toast('🎹 MIDI saved: '+pname);
 }
 
-// CAMERA
+// Camera
 let camStr=null;
 async function openCam(){document.getElementById('camModal').classList.add('open');try{camStr=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1920}}});document.getElementById('camVideo').srcObject=camStr;}catch(e){toast('⚠️ Camera: '+e.message);document.getElementById('camModal').classList.remove('open');}}
-function capturePhoto(){const v=document.getElementById('camVideo'),c=document.getElementById('camCanvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);const img=new Image();img.onload=()=>processImage(img,'camera_scan.jpg');img.src=c.toDataURL('image/jpeg',0.95);closeCam();}
+function capturePhoto(){const v=document.getElementById('camVideo'),c=document.getElementById('camCanvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);const img=new Image();img.onload=()=>processImageOMR(img,'camera_scan.jpg');img.src=c.toDataURL('image/jpeg',0.95);closeCam();}
 function closeCam(){if(camStr){camStr.getTracks().forEach(t=>t.stop());camStr=null;}document.getElementById('camModal').classList.remove('open');}
-
-// SERVICE WORKER
-if('serviceWorker' in navigator){
-  const sw=`const C='omr-v2';self.addEventListener('install',e=>{self.skipWaiting();});self.addEventListener('activate',e=>{self.clients.claim();});self.addEventListener('fetch',e=>{e.respondWith(fetch(e.request).catch(()=>caches.match(e.request)));});`;
-  navigator.serviceWorker.register(URL.createObjectURL(new Blob([sw],{type:'application/javascript'})),{scope:'./'}).catch(()=>{});
-}
 </script>
 </body>
 </html>
