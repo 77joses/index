@@ -307,6 +307,11 @@ header p{font-style:italic;color:var(--muted);font-size:12px;margin-top:3px;}
 <script>
 'use strict';
 
+
+// ══════════════════════════════════════════════════════════════════════════
+//  SECTION 1: S1 — GLOBALS & UI HELPERS
+// ══════════════════════════════════════════════════════════════════════════
+
 // ══════════════════════════════════════════
 //  GLOBALS
 // ══════════════════════════════════════════
@@ -362,6 +367,12 @@ function resetStages(){['load','staves','key','time','notes','pitch','rhythm','v
 // ══════════════════════════════════════════
 //  FILE HANDLING
 // ══════════════════════════════════════════
+
+
+// ══════════════════════════════════════════════════════════════════════════
+//  SECTION 2: S2 — FILE HANDLER
+// ══════════════════════════════════════════════════════════════════════════
+
 function handleDrop(e){
   e.preventDefault();document.getElementById('dropZone').classList.remove('drag');
   const f=e.dataTransfer.files[0];if(f)handleFile(f);
@@ -390,6 +401,12 @@ function handleFile(file){
 //  directly from PDF — no image processing needed
 //  Accuracy: HIGH (exact coordinates from source)
 // ══════════════════════════════════════════
+
+
+// ══════════════════════════════════════════════════════════════════════════
+//  SECTION 3: S3 — PDF VECTOR READING
+// ══════════════════════════════════════════════════════════════════════════
+
 async function processPDF(file){
   setStage('load','active');
   log('PDF detected — reading vector content','info');
@@ -765,6 +782,12 @@ function assignRhythmFromVectors(notes,stems,staves){
 //  VOICE SEPARATION — continuous streams
 //  Each voice runs across ALL systems/pages
 // ══════════════════════════════════════════
+
+
+// ══════════════════════════════════════════════════════════════════════════
+//  SECTION 4: S4 — SCORE BUILDER (voice separation, measures/beats)
+// ══════════════════════════════════════════════════════════════════════════
+
 function buildScore(notes,staves,keySig,timeSig,filename,fromPdf){
   const parts={soprano:[],alto:[],tenor:[],bass:[]};
   const VOICES=['soprano','alto','tenor','bass'];
@@ -817,6 +840,12 @@ function buildScore(notes,staves,keySig,timeSig,filename,fromPdf){
 // ══════════════════════════════════════════
 //  PDF PREVIEW RENDER (page 1 for display)
 // ══════════════════════════════════════════
+
+
+// ══════════════════════════════════════════════════════════════════════════
+//  SECTION 5: S5 — PDF PREVIEW RENDERER
+// ══════════════════════════════════════════════════════════════════════════
+
 async function renderPDFPreview(pdfDoc,pageNum){
   try{
     const page=await pdfDoc.getPage(pageNum);
@@ -837,6 +866,12 @@ async function renderPDFPreview(pdfDoc,pageNum){
 //  METHOD B: IMAGE PROCESSING (camera/photo)
 //  Uses OpenCV at FULL resolution — never scale before processing
 // ══════════════════════════════════════════
+
+
+// ══════════════════════════════════════════════════════════════════════════
+//  SECTION 6: S6 — IMAGE OMR (OpenCV pipeline)
+// ══════════════════════════════════════════════════════════════════════════
+
 async function processImageFile(file){
   setStage('load','active');
   const reader=new FileReader();
@@ -1139,6 +1174,12 @@ function drawNoteheadsOverlay(overlay,notes,scale){
 // ══════════════════════════════════════════
 //  SHOW RESULTS
 // ══════════════════════════════════════════
+
+
+// ══════════════════════════════════════════════════════════════════════════
+//  SECTION 7: S7 — RESULTS TABLE & DISPLAY
+// ══════════════════════════════════════════════════════════════════════════
+
 function showResults(score,filename,method){
   currentScore=score;
   const methodBadge=method==='vector'?
@@ -1177,6 +1218,11 @@ function showResults(score,filename,method){
 
 function durName(d){return{4:'whole',2:'half',1:'quarter',0.5:'eighth',0.25:'16th'}[d]||d+'b';}
 function vCol(v){return{soprano:'#f0a0c0',alto:'#c0a0f0',tenor:'#a0d0f0',bass:'#a0f0c0'}[v]||'var(--text)';}
+
+
+// ══════════════════════════════════════════════════════════════════════════
+//  SECTION 8: S8 — AUDIO ENGINE & PLAYER
+// ══════════════════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════
 //  AUDIO ENGINE
@@ -1270,6 +1316,12 @@ function renderLib(){const lib=document.getElementById('library');if(!S.songs.le
 renderLib();
 
 // MIDI
+
+
+// ══════════════════════════════════════════════════════════════════════════
+//  SECTION 9: S9 — MIDI EXPORT & CAMERA
+// ══════════════════════════════════════════════════════════════════════════
+
 function n2midi(name,tr){if(!name||name==='R')return null;const ns=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];const m=name.match(/^([A-G])(#|b)?(\d)$/);if(!m)return null;let idx=ns.indexOf(m[1]+(m[2]||''));if(idx<0)idx=(ns.indexOf(m[1])-1+12)%12;if(idx<0)return null;return(parseInt(m[3])+1)*12+idx+(tr||0);}
 function vl(v){const b=[v&0x7f];v>>=7;while(v>0){b.unshift((v&0x7f)|0x80);v>>=7;}return b;}
 function exportMidi(pname){
@@ -1291,6 +1343,7 @@ let camStr=null;
 async function openCam(){document.getElementById('camModal').classList.add('open');try{camStr=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1920}}});document.getElementById('camVideo').srcObject=camStr;}catch(e){toast('⚠️ Camera: '+e.message);document.getElementById('camModal').classList.remove('open');}}
 function capturePhoto(){const v=document.getElementById('camVideo'),c=document.getElementById('camCanvas');c.width=v.videoWidth;c.height=v.videoHeight;c.getContext('2d').drawImage(v,0,0);const img=new Image();img.onload=()=>processImageOMR(img,'camera_scan.jpg');img.src=c.toDataURL('image/jpeg',0.95);closeCam();}
 function closeCam(){if(camStr){camStr.getTracks().forEach(t=>t.stop());camStr=null;}document.getElementById('camModal').classList.remove('open');}
+
 </script>
 </body>
 </html>
