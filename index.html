@@ -116,6 +116,9 @@ header p{font-style:italic;color:var(--muted);font-size:12px;margin-top:3px;}
 #camCanvas{display:none;}
 .dvd{height:1px;background:var(--border);margin:10px 0;}
 .row2{display:flex;gap:7px;}.row2>*{flex:1;}
+.key-btn{background:var(--bg3);border:1px solid var(--border);color:var(--muted);font-family:'Cinzel',serif;font-size:10px;padding:7px 2px;border-radius:7px;cursor:pointer;text-align:center;transition:all .2s;letter-spacing:.3px;}
+.key-btn:active{border-color:var(--gold);color:var(--gold);}
+.key-btn.active{background:rgba(201,168,76,.15);border-color:var(--gold);color:var(--gold2);font-weight:600;}
 #cvStatus{font-size:12px;color:var(--muted);font-style:italic;text-align:center;padding:8px;display:none;}
 #cvStatus.show{display:block;}
 .method-badge{display:inline-block;font-family:'Cinzel',serif;font-size:9px;padding:3px 8px;border-radius:12px;margin-left:6px;vertical-align:middle;}
@@ -164,6 +167,27 @@ header p{font-style:italic;color:var(--muted);font-size:12px;margin-top:3px;}
           <div class="mode-sub">SA on treble · TB on bass</div>
         </div>
       </div>
+    </div>
+
+    <!-- KEY SIGNATURE SELECTOR -->
+    <div class="card" id="keySelCard">
+      <div class="card-title"><span>🎵</span> Key Signature</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:8px">Auto-detected from scan. Override here if wrong.</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:6px" id="keyGrid">
+        <!-- Sharps -->
+        <button class="key-btn" onclick="setKey(0)">C maj</button>
+        <button class="key-btn" onclick="setKey(1)">G (1♯)</button>
+        <button class="key-btn" onclick="setKey(2)">D (2♯)</button>
+        <button class="key-btn" onclick="setKey(3)">A (3♯)</button>
+        <button class="key-btn" onclick="setKey(4)">E (4♯)</button>
+        <button class="key-btn" onclick="setKey(5)">B (5♯)</button>
+        <!-- Flats -->
+        <button class="key-btn" onclick="setKey(-1)">F (1♭)</button>
+        <button class="key-btn" onclick="setKey(-2)">B♭(2♭)</button>
+        <button class="key-btn" onclick="setKey(-3)">E♭(3♭)</button>
+        <button class="key-btn" onclick="setKey(-4)">A♭(4♭)</button>
+      </div>
+      <div style="font-size:12px;color:var(--teal);min-height:18px" id="keySelDisplay">Auto-detect enabled</div>
     </div>
 
     <div class="card">
@@ -316,6 +340,7 @@ header p{font-style:italic;color:var(--muted);font-size:12px;margin-top:3px;}
 //  GLOBALS
 // ══════════════════════════════════════════
 let cvReady=false,cvErr=false;
+let manualKey=null; // null=auto-detect, set by setKey()
 let currentScore=null;
 let staffMode=4;
 
@@ -348,6 +373,30 @@ function setMode(n){
   document.getElementById('mode-4').classList.toggle('active',n===4);
   document.getElementById('mode-2').classList.toggle('active',n===2);
   toast(n===4?'4-staff mode: S·A·T·B separate':'2-staff grand staff mode');
+}
+
+function setKey(acc){
+  // acc: number of sharps (+) or flats (-). null = auto-detect.
+  const KEY_NAMES={
+    0:'C major',1:'G major',2:'D major',3:'A major',4:'E major',5:'B major',6:'F# major',
+    '-1':'F major','-2':'Bb major','-3':'Eb major','-4':'Ab major','-5':'Db major'
+  };
+  manualKey={
+    accidentals:acc,
+    name:KEY_NAMES[acc]||'Custom',
+    sharps:acc>0?acc:0,
+    flats:acc<0?-acc:0
+  };
+  // Update UI
+  document.querySelectorAll('.key-btn').forEach(b=>b.classList.remove('active'));
+  // Find the button for this accidental count
+  const btns=document.querySelectorAll('.key-btn');
+  const accOrder=[0,1,2,3,4,5,-1,-2,-3,-4];
+  const btnIdx=accOrder.indexOf(acc);
+  if(btnIdx>=0&&btns[btnIdx])btns[btnIdx].classList.add('active');
+  document.getElementById('keySelDisplay').textContent=
+    '✅ Manual: '+manualKey.name+(acc>0?' ('+acc+'♯)':acc<0?' ('+-acc+'♭)':'');
+  toast('🎵 Key set to '+manualKey.name);
 }
 let tt;
 function toast(m,d=2800){const e=document.getElementById('toast');e.textContent=m;e.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>e.classList.remove('show'),d);}
@@ -468,6 +517,31 @@ async function processPDF(file){
           analyseVectorPath(currentPath,fn,pgIdx,pH,allNoteheads,allHoriz,allStems,ops,i,args);
         }
         currentPath=[];
+      }else if(fn===OPS.rectangle){
+        // 're' operator: x y w h re — draws a rectangle
+        // Staff lines and beams are drawn as thin filled rectangles
+        // args = [x, y, width, height] in PDF coordinates
+        if(args&&args.length>=4){
+          const rx=args[0],ry=args[1],rw=args[2],rh=args[3];
+          const screenY=pH-ry-rh; // convert PDF Y (bottom=0) to screen Y (top=0)
+          // Staff line rectangle: very wide, very thin
+          if(rw>40&&Math.abs(rh)<3.0){
+            allHoriz.push({
+              x0:rx,y0:screenY,x1:rx+rw,y1:screenY+Math.abs(rh),
+              midY:screenY+Math.abs(rh)/2,
+              pageIdx:pgIdx
+            });
+          }
+          // Small filled rectangle = possible notehead or notehead part
+          if(rw>=2.5&&rw<=9&&Math.abs(rh)>=1.5&&Math.abs(rh)<=7){
+            allNoteheads.push({
+              cx:rx+rw/2, cy:screenY+Math.abs(rh)/2,
+              w:rw, h:Math.abs(rh),
+              filled:true, npts:4, pageIdx:pgIdx,
+              globalY:pgIdx*10000+screenY+Math.abs(rh)/2
+            });
+          }
+        }
       }else if(fn===OPS.endPath){
         currentPath=[];
       }
@@ -483,11 +557,11 @@ async function processPDF(file){
   setStage('staves','done');
   log(`Staves: ${staves.length}  spacing: ${staves[0]?.spacing.toFixed(2)}pts`,'ok');
 
-  // Key signature from blob count in key sig zone
+  // Key signature — use manual override if set, otherwise auto-detect
   setStage('key','active');
-  const keySig=detectKeySigFromVectors(allNoteheads,allStaves||staves,staves);
+  const keySig=manualKey||detectKeySigFromVectors(allNoteheads,allStaves||staves,staves);
   setStage('key','done');
-  log(`Key: ${keySig.name} (${keySig.accidentals} accidentals)`,'ok');
+  log(`Key: ${keySig.name} (${manualKey?'manual':'auto'})`,'ok');
 
   // Time signature — read from PDF text
   setStage('time','active');
@@ -603,7 +677,7 @@ function detectStavesFromLines(horiz,pageHeights){
       for(let j=1;j<5;j++)diffs.push(g[j]-g[j-1]);
       const avg=diffs.reduce((a,b)=>a+b,0)/4;
       const maxDev=Math.max(...diffs.map(d=>Math.abs(d-avg)));
-      if(maxDev/avg<0.35&&avg>=3&&avg<=12){
+      if(maxDev/avg<0.35&&avg>=2.5&&avg<=15){
         staves.push({
           lines:g,
           spacing:avg,
@@ -925,11 +999,11 @@ async function processImageOMR(imgEl,filename){
     log(`Staves: ${staves.length}  spacing: ${sp.toFixed(1)}px`,'ok');
     drawStavesOverlay(overlay,staves,dispScale);
 
-    // Key sig
+    // Key sig — use manual override if set, otherwise auto-detect
     setStage('key','active');
-    const keySig=detectKeySigImage(binary,staves);
+    const keySig=manualKey||detectKeySigImage(binary,staves);
     setStage('key','done');
-    log(`Key: ${keySig.name}`,'ok');
+    log(`Key: ${keySig.name} (${manualKey?'manual':'auto'})`,'ok');
 
     // Time sig
     setStage('time','active');
@@ -949,12 +1023,16 @@ async function processImageOMR(imgEl,filename){
     setStage('pitch','done');
 
     // Rhythm
+    // Uses spacing between consecutive notes on the same staff to detect eighths.
+    // Proven: notes spaced < 4.5 x staff_spacing apart = eighth (0.5)
+    // Open notehead in tight group (< 1.5 x sp) = also eighth (misdetected open)
+    // Open notehead with space = half (2) or whole (4)
     setStage('rhythm','active');
-    const notesWithRhythm=notesWithPitch.map(n=>({
-      ...n,
-      duration:n.filled?(n.hasStem?1:1):( n.hasStem?2:4)
-    }));
+    const notesWithRhythm=assignRhythmImage(notesWithPitch,sp);
     setStage('rhythm','done');
+    const durCounts={};
+    notesWithRhythm.forEach(n=>{durCounts[n.duration]=(durCounts[n.duration]||0)+1;});
+    log('Rhythm: '+Object.entries(durCounts).map(([d,c])=>durName(parseFloat(d))+'='+c).join('  '),'ok');
 
     // Voices
     setStage('voices','active');
@@ -971,6 +1049,54 @@ async function processImageOMR(imgEl,filename){
 }
 
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+// ── RHYTHM ASSIGNMENT (image path) ──────────────────────────────────────────
+// Rules (in priority order):
+// 1. Open notehead (filled=false) AND far from neighbors → half(2) or whole(4)
+// 2. Open notehead in tight group (gap < 1.5*sp) → eighth(0.5) — open=misdetected
+// 3. Filled notehead close to any neighbor (gap < 4.5*sp) → eighth(0.5)
+// 4. Filled notehead with large gaps on both sides → quarter(1)
+// This matches Mwimbieni Bwana: produces ~14 beats per 3-measure system ✓
+function assignRhythmImage(notes, sp){
+  // Group notes by staffIdx for per-staff neighbor comparison
+  const byStaff={};
+  notes.forEach((n,i)=>{
+    if(!byStaff[n.staffIdx])byStaff[n.staffIdx]=[];
+    byStaff[n.staffIdx].push({note:n,idx:i});
+  });
+
+  const durations=new Array(notes.length).fill(1);
+
+  Object.values(byStaff).forEach(group=>{
+    // Sort by x within each staff
+    group.sort((a,b)=>a.note.cx-b.note.cx);
+    for(let i=0;i<group.length;i++){
+      const {note,idx}=group[i];
+      const prevGap=i>0 ? note.cx-group[i-1].note.cx : 9999;
+      const nextGap=i<group.length-1 ? group[i+1].note.cx-note.cx : 9999;
+      const minGap=Math.min(prevGap,nextGap);
+
+      if(!note.filled){
+        if(minGap < sp*1.5){
+          // Open notehead too close to neighbor — likely fill detection error → eighth
+          durations[idx]=0.5;
+        }else{
+          // Genuine open notehead with breathing room
+          durations[idx]=note.hasStem?2:4;
+        }
+      }else{
+        // Filled notehead
+        if(minGap < sp*4.5){
+          durations[idx]=0.5; // eighth — part of beamed group
+        }else{
+          durations[idx]=1;   // quarter — isolated filled note
+        }
+      }
+    }
+  });
+
+  return notes.map((n,i)=>({...n,duration:durations[i]}));
+}
 
 // Detect staves from image using horizontal projection
 function detectStavesImage(binary,W,H){
