@@ -456,10 +456,13 @@ function handleFile(file){
 //  SECTION 3: S3 — PDF VECTOR READING
 // ══════════════════════════════════════════════════════════════════════════
 
+// PDF → image pipeline:
+// Render each PDF page to a canvas at 2.5× scale, then run
+// the same OpenCV engine used for photos. No vector parsing.
+
 async function processPDF(file){
   setStage('load','active');
-  log('PDF detected — reading vector content','info');
-
+  log('PDF detected — converting pages to images','info');
   const arrayBuf=await file.arrayBuffer();
   let pdfDoc;
   try{
@@ -467,454 +470,69 @@ async function processPDF(file){
   }catch(e){
     setStage('load','err');
     log('PDF load failed: '+e.message,'err');
-    toast('⚠️ Could not read PDF');return;
-  }
-  log(`PDF loaded: ${pdfDoc.numPages} pages, reading all pages`,'ok');
-  setStage('load','done');
-
-  // Collect all vector elements across all pages
-  const allStaves=[];    // [{lines[], spacing, midY, pageH, pageIdx}]
-  const allNoteheads=[]; // [{cx,cy,filled,pageIdx,globalY}]
-  const allStems=[];     // [{x,y0,y1,pageIdx}]
-  const allHoriz=[];     // [{x0,y0,x1,y1,pageIdx}] — for staff detection
-
-  let pageHeights=[];
-
-  for(let pgIdx=0;pgIdx<pdfDoc.numPages;pgIdx++){
-    const page=await pdfDoc.getPage(pgIdx+1);
-    const ops=await page.getOperatorList();
-    const pH=page.view[3]; // page height in pts
-    pageHeights.push(pH);
-
-    // Parse PDF operator stream to extract paths
-    // PDF operators: m=moveto, l=lineto, c=curveto, h=closepath, f=fill, S=stroke
-    const {OPS}=pdfjsLib;
-    let currentPath=[];
-    let curX=0,curY=0;
-
-    for(let i=0;i<ops.fnArray.length;i++){
-      const fn=ops.fnArray[i];
-      const args=ops.argsArray[i];
-
-      if(fn===OPS.moveTo){
-        currentPath=[[args[0],args[1]]];
-        curX=args[0];curY=args[1];
-      }else if(fn===OPS.lineTo){
-        if(currentPath.length===0)currentPath=[[curX,curY]];
-        currentPath.push([args[0],args[1]]);
-        curX=args[0];curY=args[1];
-      }else if(fn===OPS.curveTo||fn===OPS.curveTo1||fn===OPS.curveTo2){
-        if(currentPath.length===0)currentPath=[[curX,curY]];
-        // Last point of bezier
-        const lx=args[args.length-2],ly=args[args.length-1];
-        currentPath.push([lx,ly]);
-        curX=lx;curY=ly;
-      }else if(fn===OPS.closePath){
-        if(currentPath.length>0)currentPath.push(currentPath[0]);
-      }else if(fn===OPS.fill||fn===OPS.eoFill||fn===OPS.fillStroke||fn===OPS.eoFillStroke||fn===OPS.stroke){
-        // Analyse this path
-        if(currentPath.length>=2){  // lines have 2 pts, curves have 3+
-          analyseVectorPath(currentPath,fn,pgIdx,pH,allNoteheads,allHoriz,allStems,ops,i,args);
-        }
-        currentPath=[];
-      }else if(fn===OPS.rectangle){
-        // 're' operator: x y w h re — draws a rectangle
-        // Staff lines and beams are drawn as thin filled rectangles
-        // args = [x, y, width, height] in PDF coordinates
-        if(args&&args.length>=4){
-          const rx=args[0],ry=args[1],rw=args[2],rh=args[3];
-          const screenY=pH-ry-rh; // convert PDF Y (bottom=0) to screen Y (top=0)
-          // Staff line rectangle: very wide, very thin
-          if(rw>40&&Math.abs(rh)<3.0){
-            allHoriz.push({
-              x0:rx,y0:screenY,x1:rx+rw,y1:screenY+Math.abs(rh),
-              midY:screenY+Math.abs(rh)/2,
-              pageIdx:pgIdx
-            });
-          }
-          // Small filled rectangle = possible notehead or notehead part
-          if(rw>=2.5&&rw<=9&&Math.abs(rh)>=1.5&&Math.abs(rh)<=7){
-            allNoteheads.push({
-              cx:rx+rw/2, cy:screenY+Math.abs(rh)/2,
-              w:rw, h:Math.abs(rh),
-              filled:true, npts:4, pageIdx:pgIdx,
-              globalY:pgIdx*10000+screenY+Math.abs(rh)/2
-            });
-          }
-        }
-      }else if(fn===OPS.endPath){
-        currentPath=[];
-      }
-    }
-  }
-
-  log(`Vector elements — noteheads: ${allNoteheads.length}  horiz lines: ${allHoriz.length}  stems: ${allStems.length}`,'info');
-
-  // Detect staves from horizontal lines
-  setStage('staves','active');
-  const staves=detectStavesFromLines(allHoriz,pageHeights);
-  if(!staves.length){setStage('staves','err');log('No staves found','err');toast('⚠️ Could not detect staves');return;}
-  setStage('staves','done');
-  log(`Staves: ${staves.length}  spacing: ${staves[0]?.spacing.toFixed(2)}pts`,'ok');
-
-  // Key signature — use manual override if set, otherwise auto-detect
-  setStage('key','active');
-  const keySig=manualKey||detectKeySigFromVectors(allNoteheads,allStaves||staves,staves);
-  setStage('key','done');
-  log(`Key: ${keySig.name} (${manualKey?'manual':'auto'})`,'ok');
-
-  // Time signature — read from PDF text
-  setStage('time','active');
-  const timeSig=await detectTimeSigFromPDF(pdfDoc);
-  setStage('time','done');
-  log(`Time: ${timeSig.str}`,'ok');
-
-  // Assign noteheads to staves + pitch
-  setStage('notes','active');
-  setStage('pitch','active');
-  const notesWithPitch=assignPitchesToNoteheads(allNoteheads,staves,keySig,allStems);
-  setStage('notes','done');
-  setStage('pitch','done');
-  log(`Notes with pitch: ${notesWithPitch.length}`,'ok');
-
-  // Rhythm
-  setStage('rhythm','active');
-  const notesWithRhythm=assignRhythmFromVectors(notesWithPitch,allStems,staves);
-  setStage('rhythm','done');
-
-  // Voice separation
-  setStage('voices','active');
-  const score=buildScore(notesWithRhythm,staves,keySig,timeSig,file.name,true);
-  setStage('voices','done');
-
-  // Draw preview using PDF.js render
-  await renderPDFPreview(pdfDoc,1);
-
-  showResults(score,file.name,'vector');
-}
-
-// Analyse a single PDF vector path to classify it
-function analyseVectorPath(pts,fn,pgIdx,pH,noteheads,horiz,stems,ops,opIdx,args){
-  if(!pts||pts.length<2)return;
-
-  const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
-  const minX=Math.min(...xs),maxX=Math.max(...xs);
-  const minY=Math.min(...ys),maxY=Math.max(...ys);
-  const w=maxX-minX,h=maxY-minY;
-  const cx=(minX+maxX)/2,cy=(minY+maxY)/2;
-
-  // Convert PDF Y (bottom=0) to screen Y (top=0)
-  const screenCY=pH-cy;
-  const screenMinY=pH-maxY,screenMaxY=pH-minY;
-
-  const isFilled=(fn===pdfjsLib.OPS?.fill||fn===pdfjsLib.OPS?.eoFill||
-                  fn===pdfjsLib.OPS?.fillStroke||fn===pdfjsLib.OPS?.eoFillStroke||
-                  fn===9||fn===10||fn===11||fn===12); // PDF.js fill op codes
-
-  // NOTEHEAD: oval shape, width 4-8pts, height 2-6pts, at least 3 control points
-  if(w>=9&&w<=24&&h>=2.0&&h<=8.5&&pts.length>=2){
-    const aspect=w/Math.max(h,0.1);
-    if(aspect>=0.7&&aspect<=3.5){
-      noteheads.push({
-        cx,cy:screenCY,  // screen coords
-        w,h,
-        filled:isFilled,
-        npts:pts.length,
-        pageIdx,
-        // Global Y for ordering across pages (page offset)
-        globalY:pgIdx*10000+screenCY
-      });
-      return;
-    }
-  }
-
-  // HORIZONTAL LINE (staff line): very wide, very thin
-  if(w>50&&h<2.0){
-    horiz.push({
-      x0:minX,y0:screenMinY,x1:maxX,y1:screenMaxY,
-      midY:(screenMinY+screenMaxY)/2,
-      pageIdx
-    });
+    toast('\u26a0\ufe0f Could not read PDF');
     return;
   }
+  log(`PDF loaded: ${pdfDoc.numPages} page(s)`,'ok');
+  setStage('load','done');
 
-  // VERTICAL LINE (stem): tall and thin
-  if(h>6&&w<2.5&&pts.length<=3){
-    stems.push({
-      x:cx,y0:screenMinY,y1:screenMaxY,
-      pageIdx,
-      length:h
-    });
+  // Show page 1 preview so user sees something immediately
+  await renderPDFPreview(pdfDoc,1);
+
+  // Wait for OpenCV if still loading
+  if(!cvReady){
+    toast('\u23f3 Vision engine loading\u2026');
+    for(let i=0;i<20;i++){await sleep(500);if(cvReady)break;}
+    if(!cvReady){log('OpenCV not ready','err');toast('\u26a0\ufe0f Vision engine failed');return;}
   }
-}
 
-// Detect staves from horizontal lines grouped in 5s
-function detectStavesFromLines(horiz,pageHeights){
-  const staves=[];
-  // Group by page
-  const byPage={};
-  horiz.forEach(l=>{
-    if(!byPage[l.pageIdx])byPage[l.pageIdx]=[];
-    byPage[l.pageIdx].push(l);
-  });
+  let allStaves=[], allNotes=[], firstKey=null, firstTime=null;
 
-  Object.entries(byPage).forEach(([pgIdx,lines])=>{
-    const pH=pageHeights[parseInt(pgIdx)]||792;
-    // Get unique Y positions
-    const yVals=[];
-    const seen=new Set();
-    lines.forEach(l=>{
-      const y=Math.round(l.midY*2)/2; // round to 0.5pt
-      if(!seen.has(y)){seen.add(y);yVals.push(y);}
-    });
-    yVals.sort((a,b)=>a-b);
+  for(let pgIdx=0;pgIdx<pdfDoc.numPages;pgIdx++){
+    log(`\u2500\u2500 Page ${pgIdx+1} of ${pdfDoc.numPages} \u2500\u2500`,'info');
 
-    // Group into staves of 5
-    let i=0;
-    while(i<=yVals.length-5){
-      const g=yVals.slice(i,i+5);
-      const diffs=[];
-      for(let j=1;j<5;j++)diffs.push(g[j]-g[j-1]);
-      const avg=diffs.reduce((a,b)=>a+b,0)/4;
-      const maxDev=Math.max(...diffs.map(d=>Math.abs(d-avg)));
-      if(maxDev/avg<0.35&&avg>=2.5&&avg<=15){
-        staves.push({
-          lines:g,
-          spacing:avg,
-          top:g[0],
-          bottom:g[4],
-          midY:(g[0]+g[4])/2,
-          pageIdx:parseInt(pgIdx),
-          // Global Y for ordering staves across all pages
-          globalY:parseInt(pgIdx)*10000+g[0]
+    const page=await pdfDoc.getPage(pgIdx+1);
+    const viewport=page.getViewport({scale:2.5});
+    const offCanvas=document.createElement('canvas');
+    offCanvas.width=viewport.width;
+    offCanvas.height=viewport.height;
+    await page.render({canvasContext:offCanvas.getContext('2d'),viewport}).promise;
+    log(`Rendered: ${offCanvas.width}\u00d7${offCanvas.height}px`,'info');
+
+    const result=await runOMROnCanvas(offCanvas,pgIdx,0);
+    if(result){
+      if(pgIdx===0){firstKey=result.keySig;firstTime=result.timeSig;}
+      const staffOffset=allStaves.length;
+      allStaves.push(...result.staves);
+      result.notes.forEach(n=>{
+        allNotes.push({...n,
+          staffIdx:n.staffIdx+staffOffset,
+          pageIdx:pgIdx,
+          globalOrder:pgIdx*100000+n.cx
         });
-        i+=5;
-      }else i++;
+      });
+      log(`Page ${pgIdx+1}: ${result.staves.length} staves, ${result.notes.length} notes`,'ok');
+    }else{
+      log(`Page ${pgIdx+1}: no staves — skipped`,'warn');
     }
-  });
-
-  // Sort staves top to bottom, page by page
-  staves.sort((a,b)=>a.globalY-b.globalY);
-  return staves;
-}
-
-// Detect key signature by counting sharp/flat symbols near left edge
-async function detectTimeSigFromPDF(pdfDoc){
-  // Try to extract time sig from text
-  const page=await pdfDoc.getPage(1);
-  const textContent=await page.getTextContent();
-  const items=textContent.items;
-  for(const item of items){
-    const t=item.str.trim();
-    const m=t.match(/^(\d+)\/(\d+)$/);
-    if(m)return{num:parseInt(m[1]),den:parseInt(m[2]),str:t};
-    // Look for "4" near left side (time sig numerator)
-    if(t==='4'&&item.transform[4]<100)return{num:4,den:4,str:'4/4'};
   }
-  return{num:4,den:4,str:'4/4'};
+
+  if(!allNotes.length){toast('\u26a0\ufe0f No notes found in PDF');return;}
+
+  allNotes.sort((a,b)=>a.globalOrder-b.globalOrder);
+  const keySig =manualKey||firstKey ||{accidentals:0,name:'C major',sharps:0,flats:0};
+  const timeSig=firstTime||{num:4,den:4,str:'4/4'};
+  log(`Total: ${allStaves.length} staves  ${allNotes.length} notes`,'ok');
+
+  setStage('voices','active');
+  const score=buildScoreFromNotes(allNotes,allStaves,keySig,timeSig,file.name);
+  setStage('voices','done');
+  showResults(score,file.name,'pdf-image');
 }
-
-function detectKeySigFromVectors(noteheads,staves,stavesArr){
-  // Count curve objects in key sig zone of first staff
-  // Key sig zone: x between 60-120pts approximately
-  if(!stavesArr.length)return{accidentals:0,name:'C major',sharps:0,flats:0};
-  const firstStaff=stavesArr[0];
-  const sp=firstStaff.spacing;
-
-  // Objects in x=50-130 range (after clef, before first note)
-  // that are in the staff y range
-  const keySigObjs=noteheads.filter(n=>
-    n.cx>=50&&n.cx<=140&&
-    n.pageIdx===0&&
-    n.cy>=firstStaff.top-sp&&
-    n.cy<=firstStaff.bottom+sp
-  );
-
-  // Count by shape: tall narrow = sharp, round = flat
-  const tallCount=keySigObjs.filter(n=>n.h>sp*0.8&&n.w<sp*1.0).length;
-  const roundCount=keySigObjs.filter(n=>n.h<sp*1.2&&n.w>sp*0.5).length;
-
-  let accidentals=0;
-  if(tallCount>0)accidentals=Math.min(tallCount,7);
-  else if(roundCount>0)accidentals=-Math.min(roundCount,7);
-  // If the score has many sharps visible in the key area but we counted none,
-  // estimate from clef symbols found
-  if(accidentals===0&&keySigObjs.length>2)accidentals=Math.min(keySigObjs.length,7);
-
-  const KEY_NAMES={
-    0:'C major',1:'G major',2:'D major',3:'A major',4:'E major',5:'B major',
-    '-1':'F major','-2':'Bb major','-3':'Eb major','-4':'Ab major'
-  };
-  return{
-    accidentals,
-    name:KEY_NAMES[accidentals]||`${accidentals} sharps`,
-    sharps:accidentals>0?accidentals:0,
-    flats:accidentals<0?-accidentals:0
-  };
-}
-
-// Assign pitches to noteheads using staff position
-function assignPitchesToNoteheads(noteheads,staves,keySig,stems){
-  if(!staves.length)return[];
-
-  const SHARP_ORDER=['F','C','G','D','A','E','B'];
-  const FLAT_ORDER=['B','E','A','D','G','C','F'];
-  const NOTES=['C','D','E','F','G','A','B'];
-
-  // For each notehead, find its staff, then calculate pitch
-  return noteheads
-    .filter(n=>{
-      // Filter out noteheads that are in the key signature zone
-      // Key sig is typically in x<130pts on the first system
-      if(n.cx<130&&n.pageIdx===0)return false;
-      return true;
-    })
-    .map(nh=>{
-      // Find closest staff (same page)
-      const pageStaves=staves.filter(s=>s.pageIdx===nh.pageIdx);
-      if(!pageStaves.length)return null;
-
-      const bestStaff=pageStaves.reduce((best,s)=>
-        Math.abs(nh.cy-s.midY)<Math.abs(nh.cy-best.midY)?s:best
-      ,pageStaves[0]);
-
-      // Position on staff: half-steps from bottom line
-      // Screen coords: smaller Y = higher on screen = higher pitch
-      // Bottom line of staff = highest Y value (lowest on screen)
-      const bottomLineY=bestStaff.lines[bestStaff.lines.length-1]; // largest y = bottom line
-      const halfSp=bestStaff.spacing/2;
-      const stepsFromBottom=(bottomLineY-nh.cy)/halfSp;
-      const pos=Math.round(stepsFromBottom);
-
-      // Determine clef
-      const staffIdxGlobal=staves.indexOf(bestStaff);
-      let clefType;
-      if(staffMode===4){
-        clefType=(staffIdxGlobal%4>=2)?'bass':'treble';
-      }else{
-        clefType=(staffIdxGlobal%2===0)?'treble':'bass';
-      }
-
-      // Map position to note name
-      let baseName,baseOct;
-      if(clefType==='treble'){baseName=2;baseOct=4;} // E4 at bottom line
-      else{baseName=4;baseOct=2;}                      // G2 at bottom line
-
-      const total=pos+baseName;
-      const noteName=NOTES[((total%7)+7)%7];
-      const octave=baseOct+Math.floor(total/7);
-      let pitch=noteName+octave;
-
-      // Apply key signature
-      const {sharps,flats}=keySig;
-      if(sharps>0&&SHARP_ORDER.slice(0,sharps).includes(noteName)){
-        pitch=noteName+'#'+octave;
-      }else if(flats>0&&FLAT_ORDER.slice(0,flats).includes(noteName)){
-        pitch=noteName+'b'+octave;
-      }
-
-      // Find nearest stem to determine stem direction
-      const pageStem=stems.filter(s=>s.pageIdx===nh.pageIdx&&Math.abs(s.x-nh.cx)<5);
-      const nearStem=pageStem.length>0?pageStem.reduce((b,s)=>
-        Math.abs(s.x-nh.cx)<Math.abs(b.x-nh.cx)?s:b
-      ,pageStem[0]):null;
-
-      const stemUp=nearStem?(nearStem.y0<nh.cy):true;
-      const hasStem=nearStem!==null;
-
-      return{
-        cx:nh.cx,cy:nh.cy,
-        filled:nh.filled,
-        hasStem,stemUp,
-        pitch,
-        pos,
-        clefType,
-        staffIdx:staffIdxGlobal,
-        pageIdx:nh.pageIdx,
-        globalX:nh.pageIdx*100000+nh.cx  // for ordering
-      };
-    })
-    .filter(Boolean)
-    .sort((a,b)=>a.globalX-b.globalX);
-}
-
-function assignRhythmFromVectors(notes,stems,staves){
-  return notes.map(n=>{
-    let duration=1;
-    if(!n.filled){
-      duration=n.hasStem?2:4; // half or whole
-    }else{
-      // TODO: beam detection for eighth notes
-      // For now quarter notes — eighth detection is Phase 2
-      duration=1;
-    }
-    return{...n,duration};
-  });
-}
-
-// ══════════════════════════════════════════
-//  VOICE SEPARATION — continuous streams
-//  Each voice runs across ALL systems/pages
-// ══════════════════════════════════════════
-
 
 // ══════════════════════════════════════════════════════════════════════════
-//  SECTION 4: S4 — SCORE BUILDER (voice separation, measures/beats)
-// ══════════════════════════════════════════════════════════════════════════
-
-function buildScore(notes,staves,keySig,timeSig,filename,fromPdf){
-  const parts={soprano:[],alto:[],tenor:[],bass:[]};
-  const VOICES=['soprano','alto','tenor','bass'];
-
-  // Notes are already sorted by global X (page then x position)
-  // Now assign voice based on which staff they're on
-  notes.forEach(n=>{
-    let voice;
-    if(staffMode===4){
-      // S,A,T,B repeating every 4 staves
-      voice=VOICES[n.staffIdx%4]||'soprano';
-    }else{
-      // Grand staff: even=treble(SA), odd=bass(TB)
-      if(n.staffIdx%2===0){
-        voice=n.stemUp?'soprano':'alto';
-      }else{
-        voice=n.stemUp?'tenor':'bass';
-      }
-    }
-    parts[voice].push({
-      pitch:n.pitch,
-      duration:n.duration,
-      cx:n.cx,
-      pageIdx:n.pageIdx,
-      lyric:''
-    });
-  });
-
-  // Assign continuous measures and beats per voice
-  const tsn=timeSig.num;
-  Object.keys(parts).forEach(voice=>{
-    let beat=1,measure=1;
-    parts[voice]=parts[voice].map(n=>{
-      const r={...n,beat,measure};
-      beat+=n.duration;
-      while(beat>tsn+0.001){beat-=tsn;measure++;}
-      return r;
-    });
-  });
-
-  const title=filename.replace(/\.[^.]+$/,'').replace(/[_\-]/g,' ');
-  const total=Object.values(parts).reduce((a,p)=>a+p.length,0);
-
-  log(`Soprano: ${parts.soprano.length}  Alto: ${parts.alto.length}  Tenor: ${parts.tenor.length}  Bass: ${parts.bass.length}`,'ok');
-
-  return{title,key:keySig.name,time:timeSig.str,tempo:S.tempo,lyrics:'',parts,
-    meta:{total,filename,fromPdf,scannedAt:new Date().toISOString()}};
-}
-
-// ══════════════════════════════════════════
-//  PDF PREVIEW RENDER (page 1 for display)
-// ══════════════════════════════════════════
-
+//  SECTION 4: S4 — SCORE BUILDER
+// buildScore and buildScoreFromImage consolidated into buildScoreFromNotes (Section 6).
 
 // ══════════════════════════════════════════════════════════════════════════
 //  SECTION 5: S5 — PDF PREVIEW RENDERER
@@ -931,21 +549,14 @@ async function renderPDFPreview(pdfDoc,pageNum){
     overlay.width=viewport.width;overlay.height=viewport.height;
     document.getElementById('canvasWrap').style.display='block';
     await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
-  }catch(e){
-    log('Preview render failed: '+e.message,'warn');
-  }
+  }catch(e){log('Preview failed: '+e.message,'warn');}
 }
-
-// ══════════════════════════════════════════
-//  METHOD B: IMAGE PROCESSING (camera/photo)
-//  Uses OpenCV at FULL resolution — never scale before processing
-// ══════════════════════════════════════════
-
 
 // ══════════════════════════════════════════════════════════════════════════
 //  SECTION 6: S6 — IMAGE OMR (OpenCV pipeline)
 // ══════════════════════════════════════════════════════════════════════════
 
+// ── ENTRY POINT: image file upload ───────────────────────────────────────────
 async function processImageFile(file){
   setStage('load','active');
   const reader=new FileReader();
@@ -957,13 +568,13 @@ async function processImageFile(file){
   reader.readAsDataURL(file);
 }
 
+// ── ENTRY POINT: camera ───────────────────────────────────────────────────────
 async function processImageOMR(imgEl,filename){
-  if(!cvReady){toast('⏳ Image engine loading, please wait…');return;}
-
+  if(!cvReady){toast('\u23f3 Image engine loading\u2026');return;}
   const W=imgEl.width,H=imgEl.height;
-  log(`Image: ${W}×${H}px — processing at FULL resolution`,'info');
+  log(`Image: ${W}\u00d7${H}px`,'info');
 
-  // Display canvas (scaled for screen)
+  // Display canvas — scaled for screen only
   const dispScale=Math.min(1,500/W);
   const dispCanvas=document.getElementById('mainCanvas');
   const overlay=document.getElementById('overlayCanvas');
@@ -973,141 +584,125 @@ async function processImageOMR(imgEl,filename){
   overlay.width=dispCanvas.width;overlay.height=dispCanvas.height;
   dispCanvas.getContext('2d').drawImage(imgEl,0,0,dispCanvas.width,dispCanvas.height);
 
-  // Processing canvas at FULL resolution
+  // Full-resolution processing canvas
   const procCanvas=document.createElement('canvas');
   procCanvas.width=W;procCanvas.height=H;
   procCanvas.getContext('2d').drawImage(imgEl,0,0);
   setStage('load','done');
 
   await sleep(30);
+  const result=await runOMROnCanvas(procCanvas,0,0,dispScale,overlay);
+  if(!result||!result.notes.length){toast('\u26a0\ufe0f No notes found');return;}
+
+  const keySig =manualKey||result.keySig;
+  const timeSig=result.timeSig;
+  setStage('voices','active');
+  const score=buildScoreFromNotes(result.notes,result.staves,keySig,timeSig,filename);
+  setStage('voices','done');
+  showResults(score,filename,'image');
+}
+
+// ── CORE ENGINE: runs on any canvas (image or rendered PDF page) ──────────────
+// Returns {staves, keySig, timeSig, notes} or null if no staves found.
+// dispScale + overlay are optional (only for live image preview).
+async function runOMROnCanvas(canvas,pageIdx,yOffset,dispScale,overlay){
+  const W=canvas.width,H=canvas.height;
+  await sleep(10);
+  let src,gray,binary;
   try{
-    const src=cv.imread(procCanvas);
-    const gray=new cv.Mat();
+    src=cv.imread(canvas);gray=new cv.Mat();binary=new cv.Mat();
     cv.cvtColor(src,gray,cv.COLOR_RGBA2GRAY);
-
-    // Adaptive threshold
-    const binary=new cv.Mat();
-    cv.adaptiveThreshold(gray,binary,255,cv.ADAPTIVE_THRESH_GAUSSIAN_C,cv.THRESH_BINARY_INV,25,10);
-    log('Threshold applied at full resolution','ok');
-
-    // Staff detection
-    setStage('staves','active');
-    const staves=detectStavesImage(binary,W,H);
-    if(!staves.length){setStage('staves','err');log('No staves found','err');src.delete();gray.delete();binary.delete();return;}
-    setStage('staves','done');
-    const sp=staves[0].spacing;
-    log(`Staves: ${staves.length}  spacing: ${sp.toFixed(1)}px`,'ok');
-    drawStavesOverlay(overlay,staves,dispScale);
-
-    // Key sig — use manual override if set, otherwise auto-detect
-    setStage('key','active');
-    const keySig=manualKey||detectKeySigImage(binary,staves);
-    setStage('key','done');
-    log(`Key: ${keySig.name} (${manualKey?'manual':'auto'})`,'ok');
-
-    // Time sig
-    setStage('time','active');
-    const timeSig={num:4,den:4,str:'4/4'};
-    setStage('time','done');
-
-    // Noteheads at FULL resolution
-    setStage('notes','active');
-    const rawNotes=detectNoteheadsImage(binary,staves,sp);
-    setStage('notes','done');
-    log(`Noteheads found: ${rawNotes.length}`,'ok');
-    if(rawNotes.length>0)drawNoteheadsOverlay(overlay,rawNotes,dispScale);
-
-    // Pitch
-    setStage('pitch','active');
-    const notesWithPitch=assignPitchImage(rawNotes,staves,keySig);
-    setStage('pitch','done');
-
-    // Rhythm
-    // Uses spacing between consecutive notes on the same staff to detect eighths.
-    // Proven: notes spaced < 4.5 x staff_spacing apart = eighth (0.5)
-    // Open notehead in tight group (< 1.5 x sp) = also eighth (misdetected open)
-    // Open notehead with space = half (2) or whole (4)
-    setStage('rhythm','active');
-    const notesWithRhythm=assignRhythmImage(notesWithPitch,sp);
-    setStage('rhythm','done');
-    const durCounts={};
-    notesWithRhythm.forEach(n=>{durCounts[n.duration]=(durCounts[n.duration]||0)+1;});
-    log('Rhythm: '+Object.entries(durCounts).map(([d,c])=>durName(parseFloat(d))+'='+c).join('  '),'ok');
-
-    // Voices
-    setStage('voices','active');
-    const score=buildScoreFromImage(notesWithRhythm,staves,keySig,timeSig,filename);
-    setStage('voices','done');
-
-    src.delete();gray.delete();binary.delete();
-    showResults(score,filename,'image');
-
-  }catch(err){
-    log('Image OMR error: '+err.message,'err');console.error(err);
-    toast('⚠️ Recognition error — see log');
+    cv.adaptiveThreshold(gray,binary,255,
+      cv.ADAPTIVE_THRESH_GAUSSIAN_C,cv.THRESH_BINARY_INV,25,10);
+  }catch(e){
+    log('CV init error: '+e.message,'err');
+    if(src)src.delete();if(gray)gray.delete();if(binary)binary.delete();
+    return null;
   }
+
+  // Staves
+  setStage('staves','active');
+  const staves=detectStavesImage(binary,W,H);
+  if(!staves.length){
+    setStage('staves','err');
+    log(`No staves in ${W}\u00d7${H} image`,'warn');
+    src.delete();gray.delete();binary.delete();
+    return null;
+  }
+  setStage('staves','done');
+  const sp=staves[0].spacing;
+  log(`Staves: ${staves.length}  sp: ${sp.toFixed(1)}px`,'ok');
+  if(overlay&&dispScale) drawStavesOverlay(overlay,staves,dispScale);
+
+  // Key
+  setStage('key','active');
+  const keySig=manualKey||detectKeySigImage(binary,staves);
+  setStage('key','done');
+  log(`Key: ${keySig.name} (${manualKey?'manual':'auto'})`,'ok');
+
+  // Time
+  setStage('time','active');
+  const timeSig={num:4,den:4,str:'4/4'};
+  setStage('time','done');
+
+  // Noteheads
+  setStage('notes','active');
+  const rawNotes=detectNoteheadsImage(binary,staves,sp);
+  setStage('notes','done');
+  log(`Noteheads: ${rawNotes.length}`,'ok');
+  if(overlay&&dispScale&&rawNotes.length) drawNoteheadsOverlay(overlay,rawNotes,dispScale);
+
+  // Pitch
+  setStage('pitch','active');
+  const notesWithPitch=assignPitchImage(rawNotes,staves,keySig);
+  setStage('pitch','done');
+
+  // Rhythm
+  setStage('rhythm','active');
+  const notesWithRhythm=assignRhythmImage(notesWithPitch,sp);
+  setStage('rhythm','done');
+  const dc={};
+  notesWithRhythm.forEach(n=>{dc[n.duration]=(dc[n.duration]||0)+1;});
+  log('Rhythm: '+Object.entries(dc).map(([d,c])=>durName(parseFloat(d))+'='+c).join('  '),'ok');
+
+  src.delete();gray.delete();binary.delete();
+  return{staves,keySig,timeSig,notes:notesWithRhythm};
 }
 
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 
-// ── RHYTHM ASSIGNMENT (image path) ──────────────────────────────────────────
-// Rules (in priority order):
-// 1. Open notehead (filled=false) AND far from neighbors → half(2) or whole(4)
-// 2. Open notehead in tight group (gap < 1.5*sp) → eighth(0.5) — open=misdetected
-// 3. Filled notehead close to any neighbor (gap < 4.5*sp) → eighth(0.5)
-// 4. Filled notehead with large gaps on both sides → quarter(1)
-// This matches Mwimbieni Bwana: produces ~14 beats per 3-measure system ✓
-function assignRhythmImage(notes, sp){
-  // Group notes by staffIdx for per-staff neighbor comparison
+// ── RHYTHM ────────────────────────────────────────────────────────────────────
+function assignRhythmImage(notes,sp){
   const byStaff={};
   notes.forEach((n,i)=>{
     if(!byStaff[n.staffIdx])byStaff[n.staffIdx]=[];
     byStaff[n.staffIdx].push({note:n,idx:i});
   });
-
-  const durations=new Array(notes.length).fill(1);
-
+  const dur=new Array(notes.length).fill(1);
   Object.values(byStaff).forEach(group=>{
-    // Sort by x within each staff
     group.sort((a,b)=>a.note.cx-b.note.cx);
     for(let i=0;i<group.length;i++){
-      const {note,idx}=group[i];
-      const prevGap=i>0 ? note.cx-group[i-1].note.cx : 9999;
-      const nextGap=i<group.length-1 ? group[i+1].note.cx-note.cx : 9999;
-      const minGap=Math.min(prevGap,nextGap);
-
+      const{note,idx}=group[i];
+      const pg=i>0?note.cx-group[i-1].note.cx:9999;
+      const ng=i<group.length-1?group[i+1].note.cx-note.cx:9999;
+      const mg=Math.min(pg,ng);
       if(!note.filled){
-        if(minGap < sp*1.5){
-          // Open notehead too close to neighbor — likely fill detection error → eighth
-          durations[idx]=0.5;
-        }else{
-          // Genuine open notehead with breathing room
-          durations[idx]=note.hasStem?2:4;
-        }
+        dur[idx]=mg<sp*1.5?0.5:(note.hasStem?2:4);
       }else{
-        // Filled notehead
-        if(minGap < sp*4.5){
-          durations[idx]=0.5; // eighth — part of beamed group
-        }else{
-          durations[idx]=1;   // quarter — isolated filled note
-        }
+        dur[idx]=mg<sp*4.5?0.5:1;
       }
     }
   });
-
-  return notes.map((n,i)=>({...n,duration:durations[i]}));
+  return notes.map((n,i)=>({...n,duration:dur[i]}));
 }
 
-// Detect staves from image using horizontal projection
+// ── STAFF DETECTION ───────────────────────────────────────────────────────────
 function detectStavesImage(binary,W,H){
-  const data=binary.data;
-  const proj=new Int32Array(H);
-  for(let y=0;y<H;y++){let c=0;for(let x=0;x<W;x++){if(data[y*W+x]>128)c++;}proj[y]=c;}
-  const thresh=W*0.25;
-  const peaks=[];
-  for(let y=2;y<H-2;y++){
+  const data=binary.data,proj=new Int32Array(H);
+  for(let y=0;y<H;y++){let c=0;for(let x=0;x<W;x++)if(data[y*W+x]>128)c++;proj[y]=c;}
+  const thresh=W*0.25,peaks=[];
+  for(let y=2;y<H-2;y++)
     if(proj[y]>thresh&&proj[y]>=proj[y-1]&&proj[y]>=proj[y+1])peaks.push(y);
-  }
   const merged=[];let last=-99;
   for(const r of peaks){
     if(r-last>3){merged.push(r);last=r;}
@@ -1120,73 +715,63 @@ function detectStavesImage(binary,W,H){
     const avg=diffs.reduce((a,b)=>a+b,0)/4;
     const maxDev=Math.max(...diffs.map(d=>Math.abs(d-avg)));
     if(maxDev/avg<0.3&&avg>=4&&avg<=80){
-      staves.push({lines:g,spacing:avg,top:g[0]-avg*0.6,bottom:g[4]+avg*0.6,midY:(g[0]+g[4])/2,pageIdx:0,globalY:g[0]});
+      staves.push({lines:g,spacing:avg,top:g[0]-avg*0.6,bottom:g[4]+avg*0.6,
+                   midY:(g[0]+g[4])/2,pageIdx:0,globalY:g[0]});
       i+=4;
     }
   }
   return staves;
 }
 
+// ── KEY SIGNATURE ─────────────────────────────────────────────────────────────
 function detectKeySigImage(binary,staves){
   if(!staves.length)return{accidentals:0,name:'C major',sharps:0,flats:0};
-  const W=binary.cols,H=binary.rows;
-  const staff=staves[0],sp=staff.spacing;
+  const W=binary.cols,H=binary.rows,staff=staves[0],sp=staff.spacing;
   const x0=Math.round(sp*3.5),x1=Math.round(sp*8);
   const y0=Math.max(0,Math.floor(staff.top)),y1=Math.min(H-1,Math.floor(staff.bottom));
   if(x1<=x0||y1<=y0)return{accidentals:0,name:'C major',sharps:0,flats:0};
   const roi=new cv.Rect(x0,y0,x1-x0,y1-y0);
   const roiMat=binary.roi(roi);
-  const contours=new cv.MatVector();const hier=new cv.Mat();
+  const contours=new cv.MatVector(),hier=new cv.Mat();
   let blobs=0,tallBlobs=0;
   try{
     const tmp=roiMat.clone();
     cv.findContours(tmp,contours,hier,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE);
     for(let i=0;i<contours.size();i++){
-      const c=contours.get(i);const r=cv.boundingRect(c);c.delete();
-      if(cv.contourArea(contours.get(i)||c)<sp*sp*0.08)continue;
-      if(r.width>sp*1.5)continue;if(r.height<sp*0.7)continue;
+      const c=contours.get(i);const area=cv.contourArea(c);const r=cv.boundingRect(c);c.delete();
+      if(area<sp*sp*0.08||r.width>sp*1.5||r.height<sp*0.7)continue;
       blobs++;if(r.height>r.width*1.2)tallBlobs++;
     }
     tmp.delete();
   }finally{contours.delete();hier.delete();roiMat.delete();}
-  let acc=tallBlobs>0?Math.min(Math.ceil(tallBlobs/1.5),7):Math.min(blobs,4);
-  const KEY_NAMES={0:'C major',1:'G major',2:'D major',3:'A major',4:'E major',5:'B major','-1':'F major','-2':'Bb major','-3':'Eb major','-4':'Ab major'};
-  return{accidentals:acc,name:KEY_NAMES[acc]||'C major',sharps:acc>0?acc:0,flats:acc<0?-acc:0};
+  const acc=tallBlobs>0?Math.min(Math.ceil(tallBlobs/1.5),7):Math.min(blobs,4);
+  const KN={0:'C major',1:'G major',2:'D major',3:'A major',4:'E major',5:'B major',
+             '-1':'F major','-2':'Bb major','-3':'Eb major','-4':'Ab major'};
+  return{accidentals:acc,name:KN[acc]||'C major',sharps:acc>0?acc:0,flats:acc<0?-acc:0};
 }
 
+// ── NOTEHEAD DETECTION ────────────────────────────────────────────────────────
+// Beam removal (horizontal morphological opening) then contour detection.
+// Proven: 340 notes/page on Mwimbieni Bwana at 200 DPI (sp=12.8px).
 function detectNoteheadsImage(binary,staves,sp){
-  // BEAM REMOVAL: beamed notes merge into one blob without this step.
-  // Remove horizontal elements (beams + staff lines) before detection.
-  // Proven: detects 340 notes on Mwimbieni Bwana page 1 at 200 DPI.
   const W=binary.cols,H=binary.rows,notes=[];
-  const minW=sp*0.42,maxW=sp*1.6;
-  const minH=sp*0.36,maxH=sp*1.08;
+  const minW=sp*0.42,maxW=sp*1.6,minH=sp*0.36,maxH=sp*1.08;
   const minA=sp*sp*0.10,maxA=sp*sp*2.3;
-
-  log(`Notehead target: W=${minW.toFixed(1)}-${maxW.toFixed(1)} H=${minH.toFixed(1)}-${maxH.toFixed(1)} sp=${sp.toFixed(1)}`,'info');
-
-  // Remove beams and staff lines with horizontal morphological opening
+  log(`NH target: W=${minW.toFixed(1)}-${maxW.toFixed(1)} H=${minH.toFixed(1)}-${maxH.toFixed(1)}`,'info');
   const kw=Math.max(Math.round(sp*2.0),12);
   const hK=cv.getStructuringElement(cv.MORPH_RECT,new cv.Size(kw,1));
-  const hEr=new cv.Mat(),hDil=new cv.Mat(),noBeams=new cv.Mat();
-  cv.erode(binary,hEr,hK);
   const dK=cv.getStructuringElement(cv.MORPH_RECT,new cv.Size(kw,3));
-  cv.dilate(hEr,hDil,dK);
-  cv.subtract(binary,hDil,noBeams);
-  log(`Beam removal kernel: ${kw}px`,'info');
-
-  const contours=new cv.MatVector();const hier=new cv.Mat();
+  const hEr=new cv.Mat(),hDil=new cv.Mat(),noBeams=new cv.Mat();
+  cv.erode(binary,hEr,hK);cv.dilate(hEr,hDil,dK);cv.subtract(binary,hDil,noBeams);
+  log(`Beam kernel: ${kw}px`,'info');
+  const contours=new cv.MatVector(),hier=new cv.Mat();
   try{
     cv.findContours(noBeams,contours,hier,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE);
-    log(`Contours after beam removal: ${contours.size()}`,'info');
+    log(`Contours: ${contours.size()}`,'info');
     const rej={area:0,w:0,h:0,asp:0,line:0,staff:0};
     for(let i=0;i<contours.size();i++){
-      const c=contours.get(i);
-      const area=cv.contourArea(c);
-      const r=cv.boundingRect(c);c.delete();
-      const w=r.width,h=r.height;
-      const cx=r.x+w/2,cy=r.y+h/2;
-      const asp=w/Math.max(h,1);
+      const c=contours.get(i);const area=cv.contourArea(c);const r=cv.boundingRect(c);c.delete();
+      const w=r.width,h=r.height,cx=r.x+w/2,cy=r.y+h/2,asp=w/Math.max(h,1);
       if(area<minA||area>maxA){rej.area++;continue;}
       if(w<minW||w>maxW){rej.w++;continue;}
       if(h<minH||h>maxH){rej.h++;continue;}
@@ -1194,12 +779,11 @@ function detectNoteheadsImage(binary,staves,sp){
       if(w>W*0.07){rej.line++;continue;}
       const ns=staves.some(s=>cy>=s.top-s.spacing*2.0&&cy<=s.bottom+s.spacing*2.0);
       if(!ns){rej.staff++;continue;}
-      // Check fill on ORIGINAL binary for accuracy
       const filled=isFilledNH(binary,r);
       const stem=detectStemNH(binary,r,sp);
       notes.push({cx,cy,w,h,filled,hasStem:stem.has,stemUp:stem.up,staffIdx:-1,globalX:cx});
     }
-    log(`Filter: passed=${notes.length} area=${rej.area} w=${rej.w} h=${rej.h} asp=${rej.asp} line=${rej.line} staff=${rej.staff}`,'info');
+    log(`Passed: ${notes.length}  rej: area=${rej.area} w=${rej.w} h=${rej.h} asp=${rej.asp} line=${rej.line} staff=${rej.staff}`,'info');
   }finally{
     contours.delete();hier.delete();
     hK.delete();hEr.delete();hDil.delete();dK.delete();noBeams.delete();
@@ -1212,10 +796,12 @@ function isFilledNH(binary,rect){
   const cx=rect.x+rect.width/2,cy=rect.y+rect.height/2;
   const r=Math.min(rect.width,rect.height)*0.28;
   let dark=0,total=0;const data=binary.data,W=binary.cols,H=binary.rows;
-  for(let dy=-r;dy<=r;dy++){for(let dx=-r;dx<=r;dx++){
-    if(dx*dx+dy*dy<=r*r){const px=Math.round(cx+dx),py=Math.round(cy+dy);
-      if(px>=0&&px<W&&py>=0&&py<H){total++;if(data[py*W+px]>128)dark++;}}
-  }}
+  for(let dy=-r;dy<=r;dy++)for(let dx=-r;dx<=r;dx++){
+    if(dx*dx+dy*dy<=r*r){
+      const px=Math.round(cx+dx),py=Math.round(cy+dy);
+      if(px>=0&&px<W&&py>=0&&py<H){total++;if(data[py*W+px]>128)dark++;}
+    }
+  }
   return total>0&&(dark/total)>0.45;
 }
 
@@ -1234,56 +820,77 @@ function detectStemNH(binary,rect,sp){
   return{has:above>4||below>4,up:above>below};
 }
 
+// ── PITCH ─────────────────────────────────────────────────────────────────────
 function assignPitchImage(notes,staves,keySig){
-  const SHARP=['F','C','G','D','A','E','B'],FLAT=['B','E','A','D','G','C','F'],NOTES=['C','D','E','F','G','A','B'];
+  const SHARP=['F','C','G','D','A','E','B'],FLAT=['B','E','A','D','G','C','F'];
+  const NOTES=['C','D','E','F','G','A','B'];
   return notes.map(n=>{
-    const ps=staves;
-    if(!ps.length)return{...n,pitch:'R',staffIdx:0};
-    const bs=ps.reduce((b,s)=>Math.abs(n.cy-s.midY)<Math.abs(n.cy-b.midY)?s:b,ps[0]);
-    const idx=ps.indexOf(bs);
+    if(!staves.length)return{...n,pitch:'R',staffIdx:0};
+    const bs=staves.reduce((b,s)=>Math.abs(n.cy-s.midY)<Math.abs(n.cy-b.midY)?s:b,staves[0]);
+    const idx=staves.indexOf(bs);
     const clef=staffMode===4?(idx%4>=2?'bass':'treble'):(idx%2===0?'treble':'bass');
-    const sp=bs.spacing,halfSp=sp/2;
-    const bottomLine=bs.lines[bs.lines.length-1];
-    const pos=Math.round((bottomLine-n.cy)/halfSp);
+    const halfSp=bs.spacing/2;
+    const botLine=bs.lines[bs.lines.length-1];
+    const pos=Math.round((botLine-n.cy)/halfSp);
     const base=clef==='treble'?{n:2,o:4}:{n:4,o:2};
     const total=pos+base.n;
-    const noteName=NOTES[((total%7)+7)%7];
+    const nm=NOTES[((total%7)+7)%7];
     const oct=base.o+Math.floor(total/7);
-    let pitch=noteName+oct;
-    if(keySig.sharps>0&&SHARP.slice(0,keySig.sharps).includes(noteName))pitch=noteName+'#'+oct;
-    else if(keySig.flats>0&&FLAT.slice(0,keySig.flats).includes(noteName))pitch=noteName+'b'+oct;
+    let pitch=nm+oct;
+    if(keySig.sharps>0&&SHARP.slice(0,keySig.sharps).includes(nm))pitch=nm+'#'+oct;
+    else if(keySig.flats>0&&FLAT.slice(0,keySig.flats).includes(nm))pitch=nm+'b'+oct;
     return{...n,pitch,staffIdx:idx};
   });
 }
 
-function buildScoreFromImage(notes,staves,keySig,timeSig,filename){
+// ── SCORE BUILDER (shared by image and PDF paths) ─────────────────────────────
+// Sorts by staffIdx then x, assigns voices, assigns continuous measures+beats.
+function buildScoreFromNotes(notes,staves,keySig,timeSig,filename){
   const parts={soprano:[],alto:[],tenor:[],bass:[]};
   const VOICES=['soprano','alto','tenor','bass'];
-  notes.forEach(n=>{
+  const sorted=[...notes].sort((a,b)=>
+    a.staffIdx!==b.staffIdx ? a.staffIdx-b.staffIdx : a.cx-b.cx
+  );
+  sorted.forEach(n=>{
     let v;
-    if(staffMode===4)v=VOICES[n.staffIdx%4]||'soprano';
-    else v=n.staffIdx%2===0?(n.stemUp?'soprano':'alto'):(n.stemUp?'tenor':'bass');
-    parts[v].push({pitch:n.pitch,duration:n.duration,cx:n.cx,pageIdx:0,lyric:''});
+    if(staffMode===4){
+      v=VOICES[n.staffIdx%4]||'soprano';
+    }else{
+      v=n.staffIdx%2===0?(n.stemUp?'soprano':'alto'):(n.stemUp?'tenor':'bass');
+    }
+    parts[v].push({pitch:n.pitch,duration:n.duration,cx:n.cx,pageIdx:n.pageIdx||0,lyric:''});
   });
   const tsn=timeSig.num;
   Object.keys(parts).forEach(voice=>{
     let beat=1,measure=1;
-    parts[voice]=parts[voice].map(n=>{const r={...n,beat,measure};beat+=n.duration;while(beat>tsn+0.001){beat-=tsn;measure++;}return r;});
+    parts[voice]=parts[voice].map(n=>{
+      const r={...n,beat,measure};
+      beat+=n.duration;
+      while(beat>tsn+0.001){beat-=tsn;measure++;}
+      return r;
+    });
   });
   const title=filename.replace(/\.[^.]+$/,'').replace(/[_\-]/g,' ');
   const total=Object.values(parts).reduce((a,p)=>a+p.length,0);
-  log(`Image voices — S:${parts.soprano.length} A:${parts.alto.length} T:${parts.tenor.length} B:${parts.bass.length}`,'ok');
-  return{title,key:keySig.name,time:timeSig.str,tempo:S.tempo,lyrics:'',parts,meta:{total,filename,fromPdf:false}};
+  log(`Voices S:${parts.soprano.length} A:${parts.alto.length} T:${parts.tenor.length} B:${parts.bass.length}`,'ok');
+  return{title,key:keySig.name,time:timeSig.str,tempo:S.tempo,lyrics:'',parts,
+         meta:{total,filename,scannedAt:new Date().toISOString()}};
 }
 
-// Overlay drawing
+// ── OVERLAYS ──────────────────────────────────────────────────────────────────
 function drawStavesOverlay(overlay,staves,scale){
-  const ctx=overlay.getContext('2d');ctx.clearRect(0,0,overlay.width,overlay.height);
-  const labels4=['Soprano','Alto','Tenor','Bass'],labels2=['Sop+Alto','Ten+Bass'];
+  const ctx=overlay.getContext('2d');
+  ctx.clearRect(0,0,overlay.width,overlay.height);
+  const L4=['Soprano','Alto','Tenor','Bass'],L2=['Sop+Alto','Ten+Bass'];
   staves.forEach((s,i)=>{
-    const label=(staffMode===4?labels4[i%4]:labels2[i%2])+(i>=( staffMode===4?4:2)?' (sys'+Math.floor(i/(staffMode===4?4:2)+1)+')':'');
-    s.lines.forEach(ly=>{ctx.strokeStyle='rgba(62,207,176,0.4)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,ly*scale);ctx.lineTo(overlay.width,ly*scale);ctx.stroke();});
-    ctx.fillStyle='rgba(201,168,76,0.9)';ctx.font='bold 10px monospace';ctx.fillText(label,4,s.lines[0]*scale-3);
+    const grp=staffMode===4?4:2;
+    const lbl=(staffMode===4?L4[i%4]:L2[i%2])+(Math.floor(i/grp)>0?' (sys'+(Math.floor(i/grp)+1)+')':'');
+    s.lines.forEach(ly=>{
+      ctx.strokeStyle='rgba(62,207,176,0.4)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(0,ly*scale);ctx.lineTo(overlay.width,ly*scale);ctx.stroke();
+    });
+    ctx.fillStyle='rgba(201,168,76,0.9)';ctx.font='bold 10px monospace';
+    ctx.fillText(lbl,4,s.lines[0]*scale-3);
   });
 }
 function drawNoteheadsOverlay(overlay,notes,scale){
@@ -1293,14 +900,13 @@ function drawNoteheadsOverlay(overlay,notes,scale){
     ctx.lineWidth=1.5;ctx.beginPath();
     ctx.ellipse(n.cx*scale,n.cy*scale,(n.w/2+1)*scale,(n.h/2+1)*scale,0,0,Math.PI*2);
     ctx.stroke();
-    if(n.pitch&&n.pitch!=='R'){ctx.fillStyle='rgba(240,208,128,.9)';ctx.font=`${Math.max(7,8*scale)}px monospace`;ctx.fillText(n.pitch,(n.cx-10)*scale,(n.cy-n.h/2-2)*scale);}
+    if(n.pitch&&n.pitch!=='R'){
+      ctx.fillStyle='rgba(240,208,128,.9)';
+      ctx.font=`${Math.max(7,8*scale)}px monospace`;
+      ctx.fillText(n.pitch,(n.cx-10)*scale,(n.cy-n.h/2-2)*scale);
+    }
   });
 }
-
-// ══════════════════════════════════════════
-//  SHOW RESULTS
-// ══════════════════════════════════════════
-
 
 // ══════════════════════════════════════════════════════════════════════════
 //  SECTION 7: S7 — RESULTS TABLE & DISPLAY
