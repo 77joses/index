@@ -513,7 +513,7 @@ async function processPDF(file){
         if(currentPath.length>0)currentPath.push(currentPath[0]);
       }else if(fn===OPS.fill||fn===OPS.eoFill||fn===OPS.fillStroke||fn===OPS.eoFillStroke||fn===OPS.stroke){
         // Analyse this path
-        if(currentPath.length>=3){
+        if(currentPath.length>=2){  // lines have 2 pts, curves have 3+
           analyseVectorPath(currentPath,fn,pgIdx,pH,allNoteheads,allHoriz,allStems,ops,i,args);
         }
         currentPath=[];
@@ -612,7 +612,7 @@ function analyseVectorPath(pts,fn,pgIdx,pH,noteheads,horiz,stems,ops,opIdx,args)
                   fn===9||fn===10||fn===11||fn===12); // PDF.js fill op codes
 
   // NOTEHEAD: oval shape, width 4-8pts, height 2-6pts, at least 3 control points
-  if(w>=3.5&&w<=8.5&&h>=2.0&&h<=6.5&&pts.length>=3&&pts.length<=12){
+  if(w>=9&&w<=24&&h>=2.0&&h<=8.5&&pts.length>=2){
     const aspect=w/Math.max(h,0.1);
     if(aspect>=0.7&&aspect<=3.5){
       noteheads.push({
