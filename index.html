@@ -659,7 +659,7 @@ async function runOMROnCanvas(canvas,pageIdx,yOffset,dispScale,overlay){
 
   // Rhythm
   setStage('rhythm','active');
-  const notesWithRhythm=assignRhythmImage(notesWithPitch,sp);
+  const notesWithRhythm=assignRhythmImage(notesWithPitch,sp,binary);
   setStage('rhythm','done');
   const dc={};
   notesWithRhythm.forEach(n=>{dc[n.duration]=(dc[n.duration]||0)+1;});
@@ -672,28 +672,124 @@ async function runOMROnCanvas(canvas,pageIdx,yOffset,dispScale,overlay){
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 
 // ── RHYTHM ────────────────────────────────────────────────────────────────────
-function assignRhythmImage(notes,sp){
-  const byStaff={};
-  notes.forEach((n,i)=>{
-    if(!byStaff[n.staffIdx])byStaff[n.staffIdx]=[];
-    byStaff[n.staffIdx].push({note:n,idx:i});
-  });
-  const dur=new Array(notes.length).fill(1);
-  Object.values(byStaff).forEach(group=>{
-    group.sort((a,b)=>a.note.cx-b.note.cx);
-    for(let i=0;i<group.length;i++){
-      const{note,idx}=group[i];
-      const pg=i>0?note.cx-group[i-1].note.cx:9999;
-      const ng=i<group.length-1?group[i+1].note.cx-note.cx:9999;
-      const mg=Math.min(pg,ng);
-      if(!note.filled){
-        dur[idx]=mg<sp*1.5?0.5:(note.hasStem?2:4);
-      }else{
-        dur[idx]=mg<sp*4.5?0.5:1;
-      }
+// Uses beam counting on the binary image for filled noteheads.
+// Open noteheads use stem detection only (half or whole).
+// Bidirectional search — no dependency on stem direction accuracy.
+// Parameters proven on Mwimbieni Bwana at 200 DPI (sp=12.8px).
+function assignRhythmImage(notes, sp, binary){
+  return notes.map(n=>{
+    let duration;
+    if(!n.filled){
+      // Open notehead: half (has stem) or whole (no stem)
+      duration = n.hasStem ? 2 : 4;
+    }else if(!n.hasStem){
+      // Filled, no stem detected: default quarter
+      duration = 1;
+    }else{
+      // Filled with stem: count beams on the binary image
+      const beams = detectBeams(binary, n, sp);
+      if(beams === 0) duration = 1;        // quarter
+      else if(beams === 1) duration = 0.5; // eighth
+      else duration = 0.25;               // sixteenth
     }
+    return{...n, duration};
   });
-  return notes.map((n,i)=>({...n,duration:dur[i]}));
+}
+
+// ── BEAM COUNTING ─────────────────────────────────────────────────────────────
+// Counts horizontal beam bars attached to a note's stem.
+// Strategy:
+//   1. Remove staff lines (kernel=180px keeps beams, removes only full-width lines)
+//   2. Search BOTH above and below notehead — no stem direction dependency
+//   3. Find horizontal runs that contain the stem x position
+//   4. Group consecutive rows into bands (each band = one beam)
+//   5. Only count bands within sp*1.2 of each other (true multi-beam groups)
+//      Large gaps = other notes' beams — rejected
+//
+// Key measurements at sp=12.8px (200 DPI):
+//   Beam thickness: 2-4px
+//   Double-beam gap: 3-8px  (< sp*0.65)
+//   False detection gap: 20px+ (> sp*1.5)  ← filtered out
+function detectBeams(binary, note, sp){
+  const cx=Math.round(note.cx), cy=Math.round(note.cy), h=note.h;
+  const W=binary.cols, H=binary.rows;
+
+  // Remove staff lines using wide kernel (180px >> max beam width)
+  // This preserves beams (15-100px wide) but removes staff lines (500px wide)
+  const staffKw = Math.max(Math.round(sp*14), 80);
+  const staffK  = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(staffKw,1));
+  const staffEr = new cv.Mat(), staffDil = new cv.Mat(), noStaff = new cv.Mat();
+  cv.erode(binary,  staffEr,  staffK);
+  cv.dilate(staffEr, staffDil, cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(staffKw,3)));
+  cv.subtract(binary, staffDil, noStaff);
+  staffK.delete(); staffEr.delete(); staffDil.delete();
+
+  const data = noStaff.data;
+  const searchW  = Math.round(sp*3.2);  // look sp*3.2 each side of stem
+  const minBW    = Math.round(sp*0.7);  // minimum beam width
+  const stemTol  = Math.round(sp*0.6);  // run must contain cx ± stemTol
+  const maxBeamGap = Math.round(sp*1.2); // max gap between two beams of same note
+
+  function countBeamsInZone(yFrom, yTo){
+    const ys = yFrom < yTo
+      ? Array.from({length:yTo-yFrom}, (_,i)=>yFrom+i)
+      : Array.from({length:yFrom-yTo}, (_,i)=>yTo+i).reverse();
+
+    const beamRows = [];
+    for(const y of ys){
+      if(y<0||y>=H) continue;
+      const x0=Math.max(0,cx-searchW), x1=Math.min(W,cx+searchW);
+      // Find horizontal runs in this row
+      let inRun=false, rs=0;
+      let bestRun=0;
+      for(let x=x0;x<=x1;x++){
+        const px = x<W ? data[y*W+x] : 0;
+        if(px>128&&!inRun){inRun=true;rs=x;}
+        else if(px<=128&&inRun){
+          inRun=false;
+          const rl=x-rs;
+          // Run must be wide enough AND contain the stem column
+          if(rl>=minBW && rs<=cx+stemTol && x>=cx-stemTol)
+            bestRun=Math.max(bestRun,rl);
+        }
+      }
+      if(inRun){
+        const rl=x1-rs;
+        if(rl>=minBW&&rs<=cx+stemTol) bestRun=Math.max(bestRun,rl);
+      }
+      if(bestRun>=minBW) beamRows.push(y);
+    }
+
+    // Group rows into bands (gap ≤ 2px within a band)
+    const allBands = [];
+    let cur = [];
+    for(const y of beamRows){
+      if(!cur.length||y-cur[cur.length-1]<=2) cur.push(y);
+      else{if(cur.length>=2)allBands.push(cur);cur=[y];}
+    }
+    if(cur.length>=2) allBands.push(cur);
+
+    // Filter: only count bands within maxBeamGap of the previous accepted band
+    // This separates true double-beams (gap ~sp*0.4) from false detections (gap >>sp)
+    if(!allBands.length) return 0;
+    const valid=[allBands[0]];
+    for(let i=1;i<allBands.length;i++){
+      const gap=allBands[i][0]-valid[valid.length-1][valid[valid.length-1].length-1];
+      if(gap<=maxBeamGap) valid.push(allBands[i]);
+      else break; // gap too large — stop
+    }
+    return valid.length;
+  }
+
+  // Search above notehead (stem-up)
+  const aboveCount = countBeamsInZone(cy-Math.round(h/2)-1, cy-Math.round(sp*4.0));
+  // Search below notehead (stem-down)
+  const belowCount = countBeamsInZone(cy+Math.round(h/2)+1, cy+Math.round(sp*4.0));
+
+  noStaff.delete();
+
+  // Return whichever direction found more beams (= actual stem direction)
+  return Math.max(aboveCount, belowCount);
 }
 
 // ── STAFF DETECTION ───────────────────────────────────────────────────────────
