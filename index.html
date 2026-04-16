@@ -658,8 +658,20 @@ async function runOMROnCanvas(canvas,pageIdx,yOffset,dispScale,overlay){
   setStage('pitch','done');
 
   // Rhythm
+  // Pre-compute noStaff ONCE here (staff lines removed, beams kept).
+  // Pass it to assignRhythmImage so detectBeams does NOT recreate it per note.
   setStage('rhythm','active');
-  const notesWithRhythm=assignRhythmImage(notesWithPitch,sp,binary);
+  const staffKw = Math.max(Math.round(sp*14), 80);
+  const staffK  = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(staffKw,1));
+  const staffK3 = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(staffKw,3));
+  const staffEr = new cv.Mat(), staffDil = new cv.Mat(), noStaff = new cv.Mat();
+  cv.erode(binary, staffEr, staffK);
+  cv.dilate(staffEr, staffDil, staffK3);
+  cv.subtract(binary, staffDil, noStaff);
+  staffK.delete(); staffK3.delete(); staffEr.delete(); staffDil.delete();
+
+  const notesWithRhythm = assignRhythmImage(notesWithPitch, sp, noStaff);
+  noStaff.delete();
   setStage('rhythm','done');
   const dc={};
   notesWithRhythm.forEach(n=>{dc[n.duration]=(dc[n.duration]||0)+1;});
@@ -671,29 +683,83 @@ async function runOMROnCanvas(canvas,pageIdx,yOffset,dispScale,overlay){
 
 function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 
-// ── RHYTHM ────────────────────────────────────────────────────────────────────
-// Uses beam counting on the binary image for filled noteheads.
-// Open noteheads use stem detection only (half or whole).
-// Bidirectional search — no dependency on stem direction accuracy.
-// Parameters proven on Mwimbieni Bwana at 200 DPI (sp=12.8px).
-function assignRhythmImage(notes, sp, binary){
+// ── RHYTHM + DOTS ────────────────────────────────────────────────────────────
+// Duration logic:
+//   Open notehead, no stem  → whole   (4 beats)
+//   Open notehead, has stem → half    (2 beats)
+//   Filled, no stem         → quarter (fallback, 1 beat)
+//   Filled, 0 beams         → quarter (1 beat)
+//   Filled, 1 beam          → eighth  (0.5 beats)
+//   Filled, 2 beams         → 16th    (0.25 beats)
+//
+// Dot detection:
+//   A dot immediately to the right of a notehead adds half the note's value.
+//   Dotted half   = 3 beats  (2 + 1)
+//   Dotted quarter= 1.5 beats(1 + 0.5)
+//   Dotted eighth = 0.75 beats (0.5 + 0.25)
+//
+// noStaff is pre-computed ONCE in runOMROnCanvas and passed here.
+// detectBeams receives it directly — no per-note OpenCV mat creation.
+function assignRhythmImage(notes, sp, noStaff){
   return notes.map(n=>{
     let duration;
+
+    // ── Step 1: base duration from notehead type + beam count ──
     if(!n.filled){
-      // Open notehead: half (has stem) or whole (no stem)
       duration = n.hasStem ? 2 : 4;
     }else if(!n.hasStem){
-      // Filled, no stem detected: default quarter
       duration = 1;
     }else{
-      // Filled with stem: count beams on the binary image
-      const beams = detectBeams(binary, n, sp);
-      if(beams === 0) duration = 1;        // quarter
-      else if(beams === 1) duration = 0.5; // eighth
-      else duration = 0.25;               // sixteenth
+      const beams = detectBeams(noStaff, n, sp);
+      if(beams === 0)      duration = 1;    // quarter
+      else if(beams === 1) duration = 0.5;  // eighth
+      else                 duration = 0.25; // sixteenth (2+ beams)
     }
+
+    // ── Step 2: check for augmentation dot ──────────────────────
+    // A dot is a small filled circle sitting just to the right of
+    // the notehead, vertically centred on it (within sp*0.5).
+    // Look in a zone: x from cx+w/2 to cx+w/2+sp*1.5
+    //                 y from cy-sp*0.5 to cy+sp*0.5
+    const dotted = hasDot(noStaff, n, sp);
+    if(dotted) duration = duration * 1.5; // dot adds half the value
+
     return{...n, duration};
   });
+}
+
+// ── DOT DETECTION ─────────────────────────────────────────────────────────────
+// Looks for a small dark blob to the right of the notehead.
+// A dot is roughly circular, diameter ~sp*0.4, sitting on the same
+// vertical level as the notehead centre.
+function hasDot(noStaff, note, sp){
+  const W = noStaff.cols, H = noStaff.rows;
+  const data = noStaff.data;
+  const cx = Math.round(note.cx);
+  const cy = Math.round(note.cy);
+  const w  = note.w;
+
+  // Search zone: immediately right of notehead
+  const x0 = Math.min(W-1, cx + Math.round(w/2) + 1);
+  const x1 = Math.min(W-1, cx + Math.round(w/2) + Math.round(sp*1.6));
+  const y0 = Math.max(0,   cy - Math.round(sp*0.55));
+  const y1 = Math.min(H-1, cy + Math.round(sp*0.55));
+
+  if(x1<=x0||y1<=y0) return false;
+
+  // Count dark pixels in zone
+  let dark = 0;
+  for(let y=y0;y<=y1;y++){
+    for(let x=x0;x<=x1;x++){
+      if(data[y*W+x]>128) dark++;
+    }
+  }
+
+  // A dot should fill at least 15% of the search zone
+  // but less than 60% (not a note or barline)
+  const area = (x1-x0+1)*(y1-y0+1);
+  const ratio = dark/area;
+  return ratio >= 0.15 && ratio <= 0.60;
 }
 
 // ── BEAM COUNTING ─────────────────────────────────────────────────────────────
@@ -710,20 +776,21 @@ function assignRhythmImage(notes, sp, binary){
 //   Beam thickness: 2-4px
 //   Double-beam gap: 3-8px  (< sp*0.65)
 //   False detection gap: 20px+ (> sp*1.5)  ← filtered out
-function detectBeams(binary, note, sp){
+// ── BEAM COUNTING ─────────────────────────────────────────────────────────────
+// noStaff is pre-computed once in runOMROnCanvas and passed through
+// assignRhythmImage — no OpenCV mat allocation per note.
+//
+// Strategy:
+//   1. Search both above and below notehead (no stem direction dependency)
+//   2. Find horizontal pixel runs that physically cross the stem column
+//   3. Group consecutive rows into bands (each band = 1 beam, ~2-4px thick)
+//   4. Only accept additional bands within sp*1.2 of the previous
+//      → separates real double-beams (gap 3-8px) from false hits (gap 20px+)
+//
+// Returns: 0=quarter, 1=eighth, 2=sixteenth
+function detectBeams(noStaff, note, sp){
   const cx=Math.round(note.cx), cy=Math.round(note.cy), h=note.h;
-  const W=binary.cols, H=binary.rows;
-
-  // Remove staff lines using wide kernel (180px >> max beam width)
-  // This preserves beams (15-100px wide) but removes staff lines (500px wide)
-  const staffKw = Math.max(Math.round(sp*14), 80);
-  const staffK  = cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(staffKw,1));
-  const staffEr = new cv.Mat(), staffDil = new cv.Mat(), noStaff = new cv.Mat();
-  cv.erode(binary,  staffEr,  staffK);
-  cv.dilate(staffEr, staffDil, cv.getStructuringElement(cv.MORPH_RECT, new cv.Size(staffKw,3)));
-  cv.subtract(binary, staffDil, noStaff);
-  staffK.delete(); staffEr.delete(); staffDil.delete();
-
+  const W=noStaff.cols, H=noStaff.rows;
   const data = noStaff.data;
   const searchW  = Math.round(sp*3.2);  // look sp*3.2 each side of stem
   const minBW    = Math.round(sp*0.7);  // minimum beam width
@@ -785,8 +852,6 @@ function detectBeams(binary, note, sp){
   const aboveCount = countBeamsInZone(cy-Math.round(h/2)-1, cy-Math.round(sp*4.0));
   // Search below notehead (stem-down)
   const belowCount = countBeamsInZone(cy+Math.round(h/2)+1, cy+Math.round(sp*4.0));
-
-  noStaff.delete();
 
   // Return whichever direction found more beams (= actual stem direction)
   return Math.max(aboveCount, belowCount);
