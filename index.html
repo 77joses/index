@@ -701,66 +701,34 @@ function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
 // noStaff is pre-computed ONCE in runOMROnCanvas and passed here.
 // detectBeams receives it directly — no per-note OpenCV mat creation.
 function assignRhythmImage(notes, sp, noStaff){
+  // Duration rules:
+  //   open notehead, no stem  → whole   (4)
+  //   open notehead, has stem → half    (2)
+  //   filled, no stem         → quarter (1) — stem detection fallback
+  //   filled + 0 beams        → quarter (1)
+  //   filled + 1 beam         → eighth  (0.5)
+  //   filled + 2+ beams       → 16th    (0.25)
+  //
+  // Dot detection removed — false positive rate too high.
+  // Adjacent noteheads are indistinguishable from augmentation dots
+  // at this resolution. Dots are Phase 3.
   return notes.map(n=>{
     let duration;
-
-    // ── Step 1: base duration from notehead type + beam count ──
     if(!n.filled){
       duration = n.hasStem ? 2 : 4;
     }else if(!n.hasStem){
       duration = 1;
     }else{
       const beams = detectBeams(noStaff, n, sp);
-      if(beams === 0)      duration = 1;    // quarter
-      else if(beams === 1) duration = 0.5;  // eighth
-      else                 duration = 0.25; // sixteenth (2+ beams)
+      if(beams === 0)      duration = 1;
+      else if(beams === 1) duration = 0.5;
+      else                 duration = 0.25;
     }
-
-    // ── Step 2: check for augmentation dot ──────────────────────
-    // A dot is a small filled circle sitting just to the right of
-    // the notehead, vertically centred on it (within sp*0.5).
-    // Look in a zone: x from cx+w/2 to cx+w/2+sp*1.5
-    //                 y from cy-sp*0.5 to cy+sp*0.5
-    const dotted = hasDot(noStaff, n, sp);
-    if(dotted) duration = duration * 1.5; // dot adds half the value
-
     return{...n, duration};
   });
 }
 
-// ── DOT DETECTION ─────────────────────────────────────────────────────────────
-// Looks for a small dark blob to the right of the notehead.
-// A dot is roughly circular, diameter ~sp*0.4, sitting on the same
-// vertical level as the notehead centre.
-function hasDot(noStaff, note, sp){
-  const W = noStaff.cols, H = noStaff.rows;
-  const data = noStaff.data;
-  const cx = Math.round(note.cx);
-  const cy = Math.round(note.cy);
-  const w  = note.w;
-
-  // Search zone: immediately right of notehead
-  const x0 = Math.min(W-1, cx + Math.round(w/2) + 1);
-  const x1 = Math.min(W-1, cx + Math.round(w/2) + Math.round(sp*1.6));
-  const y0 = Math.max(0,   cy - Math.round(sp*0.55));
-  const y1 = Math.min(H-1, cy + Math.round(sp*0.55));
-
-  if(x1<=x0||y1<=y0) return false;
-
-  // Count dark pixels in zone
-  let dark = 0;
-  for(let y=y0;y<=y1;y++){
-    for(let x=x0;x<=x1;x++){
-      if(data[y*W+x]>128) dark++;
-    }
-  }
-
-  // A dot should fill at least 15% of the search zone
-  // but less than 60% (not a note or barline)
-  const area = (x1-x0+1)*(y1-y0+1);
-  const ratio = dark/area;
-  return ratio >= 0.15 && ratio <= 0.60;
-}
+// hasDot removed — reimplemented in Phase 3 with blob isolation
 
 // ── BEAM COUNTING ─────────────────────────────────────────────────────────────
 // Counts horizontal beam bars attached to a note's stem.
@@ -886,29 +854,87 @@ function detectStavesImage(binary,W,H){
 
 // ── KEY SIGNATURE ─────────────────────────────────────────────────────────────
 function detectKeySigImage(binary,staves){
+  // Distinguishes sharps from flats by shape:
+  //   Sharp (#): tall and thin, h > w*1.5 — two parallel vertical lines + crossbars
+  //   Flat  (b): rounded with curved bottom, h between w*1.2 and w*2.2 — rounder shape
+  //   Natural:   similar height to sharp but wider — excluded by width filter
+  //
+  // Returns positive accidentals for sharps, negative for flats.
   if(!staves.length)return{accidentals:0,name:'C major',sharps:0,flats:0};
   const W=binary.cols,H=binary.rows,staff=staves[0],sp=staff.spacing;
-  const x0=Math.round(sp*3.5),x1=Math.round(sp*8);
-  const y0=Math.max(0,Math.floor(staff.top)),y1=Math.min(H-1,Math.floor(staff.bottom));
+
+  // Key sig zone: after clef (~3.5sp) before first note (~8sp)
+  const x0=Math.round(sp*3.5), x1=Math.round(sp*8.5);
+  const y0=Math.max(0,Math.floor(staff.top-sp*0.5));
+  const y1=Math.min(H-1,Math.floor(staff.bottom+sp*0.5));
   if(x1<=x0||y1<=y0)return{accidentals:0,name:'C major',sharps:0,flats:0};
+
   const roi=new cv.Rect(x0,y0,x1-x0,y1-y0);
   const roiMat=binary.roi(roi);
   const contours=new cv.MatVector(),hier=new cv.Mat();
-  let blobs=0,tallBlobs=0;
+  let sharpBlobs=0, flatBlobs=0;
+
   try{
     const tmp=roiMat.clone();
     cv.findContours(tmp,contours,hier,cv.RETR_EXTERNAL,cv.CHAIN_APPROX_SIMPLE);
+
     for(let i=0;i<contours.size();i++){
-      const c=contours.get(i);const area=cv.contourArea(c);const r=cv.boundingRect(c);c.delete();
-      if(area<sp*sp*0.08||r.width>sp*1.5||r.height<sp*0.7)continue;
-      blobs++;if(r.height>r.width*1.2)tallBlobs++;
+      const c=contours.get(i);
+      const area=cv.contourArea(c);
+      const r=cv.boundingRect(c);
+      c.delete();
+
+      // Minimum size: must be meaningful symbol
+      if(area < sp*sp*0.07) continue;
+      // Maximum width: not a barline or clef
+      if(r.width > sp*1.6) continue;
+      // Minimum height: must span at least part of a staff space
+      if(r.height < sp*0.6) continue;
+
+      const aspectHW = r.height / Math.max(r.width, 1);
+      const fill = area / (r.width * r.height); // how solid the blob is
+
+      // SHARP: very tall and thin, h/w > 1.5
+      // Sharps are narrow parallel lines — low fill ratio (hollow inside)
+      if(aspectHW > 1.5 && r.height > sp*1.0){
+        sharpBlobs++;
+      }
+      // FLAT: moderate height, rounder shape, h/w between 1.0 and 2.0
+      // Flats have a rounded filled lower loop — higher fill ratio
+      else if(aspectHW >= 1.0 && aspectHW <= 2.2
+              && r.height > sp*0.8
+              && fill > 0.35){
+        flatBlobs++;
+      }
     }
     tmp.delete();
-  }finally{contours.delete();hier.delete();roiMat.delete();}
-  const acc=tallBlobs>0?Math.min(Math.ceil(tallBlobs/1.5),7):Math.min(blobs,4);
-  const KN={0:'C major',1:'G major',2:'D major',3:'A major',4:'E major',5:'B major',
-             '-1':'F major','-2':'Bb major','-3':'Eb major','-4':'Ab major'};
-  return{accidentals:acc,name:KN[acc]||'C major',sharps:acc>0?acc:0,flats:acc<0?-acc:0};
+  }finally{
+    contours.delete();hier.delete();roiMat.delete();
+  }
+
+  // Decide: whichever type has more blobs wins
+  // Each sharp symbol ≈ 1-2 blobs (two vertical strokes sometimes separate)
+  // Each flat symbol ≈ 1 blob
+  let accidentals = 0;
+  if(sharpBlobs > 0 && sharpBlobs >= flatBlobs){
+    accidentals = Math.min(Math.ceil(sharpBlobs / 1.4), 7);
+  }else if(flatBlobs > 0){
+    accidentals = -Math.min(flatBlobs, 7);
+  }
+
+  const KN={
+    0:'C major',
+    1:'G major', 2:'D major', 3:'A major', 4:'E major', 5:'B major', 6:'F# major',
+    '-1':'F major','-2':'Bb major','-3':'Eb major','-4':'Ab major','-5':'Db major'
+  };
+  const name = KN[accidentals] || (accidentals>0 ? accidentals+' sharps' : -accidentals+' flats');
+  log(`Key sig blobs: sharps=${sharpBlobs} flats=${flatBlobs} → ${accidentals} → ${name}`,'info');
+  return{
+    accidentals,
+    name,
+    sharps: accidentals>0 ? accidentals : 0,
+    flats:  accidentals<0 ? -accidentals : 0
+  };
 }
 
 // ── NOTEHEAD DETECTION ────────────────────────────────────────────────────────
@@ -985,21 +1011,68 @@ function detectStemNH(binary,rect,sp){
 function assignPitchImage(notes,staves,keySig){
   const SHARP=['F','C','G','D','A','E','B'],FLAT=['B','E','A','D','G','C','F'];
   const NOTES=['C','D','E','F','G','A','B'];
+
+  // snapToGrid: snaps a detected y-coordinate to the nearest valid
+  // staff position (line or space), including 3 ledger lines above/below.
+  // WHY: a 1px detection error at sp=12.8 crosses a half-space boundary
+  // and produces a wrong note. Snapping eliminates this entirely.
+  function snapToGrid(cy, lines, sp){
+    const halfSp = sp / 2;
+    // Build full grid: 3 ledger positions below, 5 lines + 4 spaces, 3 above
+    const grid = [];
+    // Below bottom line (largest y = lowest on screen)
+    grid.push(lines[4] + sp*3);
+    grid.push(lines[4] + sp*2.5);
+    grid.push(lines[4] + sp*2);
+    grid.push(lines[4] + sp*1.5);
+    grid.push(lines[4] + sp*1);
+    grid.push(lines[4] + sp*0.5);
+    // Staff lines and spaces (bottom to top)
+    for(let i=4;i>=0;i--){
+      grid.push(lines[i]);                           // line
+      if(i>0) grid.push((lines[i]+lines[i-1])/2);   // space above
+    }
+    // Above top line
+    grid.push(lines[0] - sp*0.5);
+    grid.push(lines[0] - sp*1);
+    grid.push(lines[0] - sp*1.5);
+    grid.push(lines[0] - sp*2);
+    grid.push(lines[0] - sp*2.5);
+    grid.push(lines[0] - sp*3);
+    // Return the closest grid point
+    return grid.reduce((best,g)=>Math.abs(g-cy)<Math.abs(best-cy)?g:best, grid[0]);
+  }
+
   return notes.map(n=>{
     if(!staves.length)return{...n,pitch:'R',staffIdx:0};
+
+    // Find closest staff
     const bs=staves.reduce((b,s)=>Math.abs(n.cy-s.midY)<Math.abs(n.cy-b.midY)?s:b,staves[0]);
     const idx=staves.indexOf(bs);
     const clef=staffMode===4?(idx%4>=2?'bass':'treble'):(idx%2===0?'treble':'bass');
-    const halfSp=bs.spacing/2;
+    const sp=bs.spacing;
+    const halfSp=sp/2;
+
+    // Snap detected y to nearest valid staff position before pitch lookup
+    const snappedCy = snapToGrid(n.cy, bs.lines, sp);
     const botLine=bs.lines[bs.lines.length-1];
-    const pos=Math.round((botLine-n.cy)/halfSp);
+    const pos=Math.round((botLine-snappedCy)/halfSp);
+
+    // Map position to note name
+    // Treble clef: bottom line (pos=0) = E4  → base index 2, octave 4
+    // Bass clef:   bottom line (pos=0) = G2  → base index 4, octave 2
     const base=clef==='treble'?{n:2,o:4}:{n:4,o:2};
     const total=pos+base.n;
     const nm=NOTES[((total%7)+7)%7];
     const oct=base.o+Math.floor(total/7);
     let pitch=nm+oct;
-    if(keySig.sharps>0&&SHARP.slice(0,keySig.sharps).includes(nm))pitch=nm+'#'+oct;
-    else if(keySig.flats>0&&FLAT.slice(0,keySig.flats).includes(nm))pitch=nm+'b'+oct;
+
+    // Apply key signature
+    if(keySig.sharps>0&&SHARP.slice(0,keySig.sharps).includes(nm))
+      pitch=nm+'#'+oct;
+    else if(keySig.flats>0&&FLAT.slice(0,keySig.flats).includes(nm))
+      pitch=nm+'b'+oct;
+
     return{...n,pitch,staffIdx:idx};
   });
 }
